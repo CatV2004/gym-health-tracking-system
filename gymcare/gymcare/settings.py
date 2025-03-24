@@ -69,13 +69,16 @@ OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSO
 
 import cloudinary
 import cloudinary.uploader
+from dotenv import load_dotenv
+import os
+load_dotenv()
 from cloudinary.utils import cloudinary_url
 
 # Configuration
 cloudinary.config(
-    cloud_name = "gymcareapi",
-    api_key = "983273734242327",
-    api_secret = "DuQ9DavcYWLmGPStpPjmf155bKo",
+    cloud_name = os.getenv("CLOUD_NAME"),
+    api_key = os.getenv("API_KEY"),
+    api_secret = os.getenv("API_SECRET"),
     secure=True
 )
 
@@ -111,7 +114,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'gymcaredb',
         'USER': 'root',
-        'PASSWORD': 'Admin@123',
+        'PASSWORD': os.getenv("DB_PASSWORD"),
         'HOST': '' # mặc định localhost
     }
 }
