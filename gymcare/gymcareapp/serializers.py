@@ -33,6 +33,7 @@ class UserSerializer(ModelSerializer):
         return u
 
 
+
 class TrainerSerializer(ModelSerializer):
     user = UserSerializer()
 
@@ -119,7 +120,7 @@ class MemberSerializer(ModelSerializer):
 
         member = Member.objects.create(user=user, **validated_data)
 
-        return
+        return member
 
 
 class ChangePasswordSerializer(Serializer):

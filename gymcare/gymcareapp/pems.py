@@ -45,7 +45,7 @@ class ReviewPermission(permissions.BasePermission):
             training_package=obj.training_package
         ).exists()
 
-        if request.method == 'PO    ST':
+        if request.method == 'POST':
             return is_subscribed
 
         if request.method in ['PUT', 'PATCH', 'DELETE']:
