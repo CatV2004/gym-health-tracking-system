@@ -1,6 +1,13 @@
 from django.contrib import admin
 from .models import *
 
+class MyAdminSite(admin.AdminSite):
+    pass
+
+
+my_admin_site = MyAdminSite(name='myadmin')
+
+
 class BaseAdmin(admin.ModelAdmin):
     list_display = ('id', 'created_date', 'updated_date', 'active')
     list_filter = ('active', 'created_date')
@@ -53,14 +60,14 @@ class ReviewAdmin(BaseAdmin):
     list_filter = ('rating',)
     search_fields = ('reviewer__user__username', 'training_package__name')
 
-admin.site.register(User, UserAdmin)
-admin.site.register(Trainer, TrainerAdmin)
-admin.site.register(Member, MemberAdmin)
-admin.site.register(TypePackage, TypePackageAdmin)
-admin.site.register(TrainingPackage, TrainingPackageAdmin)
-admin.site.register(Subscription, SubscriptionAdmin)
-admin.site.register(Payment, PaymentAdmin)
-admin.site.register(WorkoutProgress, WorkoutProgressAdmin)
-admin.site.register(WorkoutSchedule, WorkoutScheduleAdmin)
-admin.site.register(Review, ReviewAdmin)
+my_admin_site.register(User, UserAdmin)
+my_admin_site.register(Trainer, TrainerAdmin)
+my_admin_site.register(Member, MemberAdmin)
+my_admin_site.register(TypePackage, TypePackageAdmin)
+my_admin_site.register(TrainingPackage, TrainingPackageAdmin)
+my_admin_site.register(Subscription, SubscriptionAdmin)
+my_admin_site.register(Payment, PaymentAdmin)
+my_admin_site.register(WorkoutProgress, WorkoutProgressAdmin)
+my_admin_site.register(WorkoutSchedule, WorkoutScheduleAdmin)
+my_admin_site.register(Review, ReviewAdmin)
 

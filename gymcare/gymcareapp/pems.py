@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from gymcare.gymcareapp.models import Subscription, Role
+from .models import Subscription, Role
 
 
 class OwnerPermission(permissions.IsAuthenticated):

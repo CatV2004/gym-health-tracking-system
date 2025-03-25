@@ -1,3 +1,9 @@
+from celery import shared_task
+from django.core.mail import send_mail
+import os
+import logging
+
+
 # @shared_task
 # def delete_permanently_after_30_days():
 #     try:
@@ -33,16 +39,19 @@
 #
 #     celery_logger.info("Task completed: delete_permanently_after_30_days")
 
-# @shared_task
-# def send_email_async(subject, message, recipient_email):
-#     try:
-#         send_mail(
-#             subject=subject,
-#             message=message,
-#             from_email=os.getenv('EMAIL_SEND'),
-#             recipient_list=[recipient_email],
-#             fail_silently=False,
-#         )
-#         celery_logger.info(f"Email sent to {recipient_email}")
-#     except Exception as e:
-#         celery_logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
+
+celery_logger = logging.getLogger("celery")
+celery_logger.setLevel(logging.INFO)
+@shared_task
+def send_email_async(subject, message, recipient_email):
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=os.getenv('EMAIL_SEND'),
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+        celery_logger.info(f"Email sent to {recipient_email}")
+    except Exception as e:
+        celery_logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
