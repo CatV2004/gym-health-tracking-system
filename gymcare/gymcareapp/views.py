@@ -16,7 +16,7 @@ from django.utils import timezone
 from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
     WorkoutScheduleChangeRequest, ChangeRequestStatus
-from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission
+from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
     MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer
@@ -26,10 +26,10 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
     queryset = User.objects.filter(is_active=True)
     serializer_class = serializers.UserSerializer
     def get_permissions(self):
-        if self.action in ['get_all_users']:
+        if self.request.method == 'GET' and self.action == 'get_all_users':
             return [AdminPermission()]
-        elif self.action in ['get_current_user','change_password']:
-            return [IsAuthenticated()]
+        elif self.request.method in ['PATCH', 'PUT']:
+            return [OwnerUserPermission()]
         else:
             return []
 
@@ -65,6 +65,17 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             user.save(update_fields=['password'])
 
             return Response({"message": "Mật khẩu đã được thay đổi thành công."}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+        self.check_object_permissions(request, user)
+
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -259,6 +270,7 @@ class TrainerScheduleApprovalViewSet(viewsets.ViewSet):
     def get_permissions(self):
         if self.action in ['approve_or_reject_schedule']:
             return [TrainerPermission()]
+        return []
 
     @action(detail=True, methods=["patch"], url_path="approve-or-reject")
     def approve_or_reject_schedule(self, request, pk=None):
@@ -267,7 +279,9 @@ class TrainerScheduleApprovalViewSet(viewsets.ViewSet):
         if not hasattr(user, 'trainer_profile'):
             return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
 
-        schedule = get_object_or_404(WorkoutSchedule, pk=pk, subscription__training_package__pt=user.trainer_profile)
+        schedule = get_object_or_404(WorkoutSchedule, id=pk)
+
+        self.check_object_permissions(request, schedule)
 
         new_status = request.data.get("status")
         if new_status not in [WorkoutScheduleStatus.COMPLETED.value, WorkoutScheduleStatus.CANCELLED.value]:
@@ -279,10 +293,14 @@ class TrainerScheduleApprovalViewSet(viewsets.ViewSet):
         return Response({"message": "Cập nhật trạng thái thành công!"}, status=status.HTTP_200_OK)
 
 
+
 class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
     def get_permissions(self):
-        if self.action in ['request_schedule_change']:
+        if self.action in ['approve_or_reject_schedule']:
             return [TrainerPermission()]
+        elif self.action in ['approve_or_reject_change_request']:
+            return [MemberPermission()]
+        return []
 
     @action(detail=True, methods=["post"], url_path="request-change")
     def request_schedule_change(self, request, pk=None):
@@ -291,7 +309,7 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
         if not hasattr(user, 'trainer_profile'):
             return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
 
-        schedule = get_object_or_404(WorkoutSchedule, pk=pk, subscription__training_package__pt=user.trainer_profile)
+        schedule = get_object_or_404(WorkoutSchedule, id=pk)
 
         proposed_time = request.data.get("proposed_time")
         reason = request.data.get("reason", "")
@@ -311,3 +329,35 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
         schedule.save()
 
         return Response(WorkoutScheduleChangeRequestSerializer(change_request).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch"], url_path="approve-or-reject")
+    def approve_or_reject_change_request(self, request, pk=None):
+        user = request.user
+
+        if not hasattr(user, 'member_profile'):
+            return Response({"error": "Bạn không phải là hội viên."}, status=status.HTTP_403_FORBIDDEN)
+
+        change_request = get_object_or_404(WorkoutScheduleChangeRequest, pk=pk)
+
+        # Kiểm tra xem lịch này có thuộc về member không
+        if change_request.schedule.subscription.member != user.member_profile:
+            return Response({"error": "Bạn không có quyền duyệt yêu cầu này."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Lấy trạng thái từ request
+        new_status = request.data.get("status")
+        if new_status not in [ChangeRequestStatus.ACCEPTED.value, ChangeRequestStatus.REJECTED.value]:
+            return Response({"error": "Trạng thái không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cập nhật trạng thái yêu cầu thay đổi
+        change_request.status = new_status
+        change_request.save()
+
+        if new_status == ChangeRequestStatus.ACCEPTED.value:
+            change_request.schedule.scheduled_at = change_request.proposed_time
+            change_request.schedule.status = WorkoutScheduleStatus.CHANGED.value
+            change_request.schedule.save()
+            return Response({"message": "Lịch tập đã được cập nhật."}, status=status.HTTP_200_OK)
+        else:
+            change_request.schedule.status = WorkoutScheduleStatus.SCHEDULED.value
+            change_request.schedule.save()
+            return Response({"message": "Yêu cầu thay đổi đã bị từ chối."}, status=status.HTTP_200_OK)
