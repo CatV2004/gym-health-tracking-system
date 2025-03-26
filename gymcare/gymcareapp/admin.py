@@ -28,10 +28,6 @@ class MemberAdmin(BaseAdmin):
     list_display = ('id', 'user', 'height', 'weight', 'goal')
     search_fields = ('user__username', 'user__email')
 
-class TypePackageAdmin(BaseAdmin):
-    list_display = ('id', 'type_name', 'price')
-    search_fields = ('type_name',)
-
 class TrainingPackageAdmin(BaseAdmin):
     list_display = ('id', 'name', 'pt', 'type_package', 'start_date', 'end_date', 'total_cost')
     list_filter = ('type_package',)
@@ -63,9 +59,8 @@ class ReviewAdmin(BaseAdmin):
 my_admin_site.register(User, UserAdmin)
 my_admin_site.register(Trainer, TrainerAdmin)
 my_admin_site.register(Member, MemberAdmin)
-my_admin_site.register(TypePackage, TypePackageAdmin)
-my_admin_site.register(TrainingPackage, TrainingPackageAdmin)
 my_admin_site.register(Subscription, SubscriptionAdmin)
+my_admin_site.register(TrainingPackage, TrainingPackageAdmin)
 my_admin_site.register(Payment, PaymentAdmin)
 my_admin_site.register(WorkoutProgress, WorkoutProgressAdmin)
 my_admin_site.register(WorkoutSchedule, WorkoutScheduleAdmin)
