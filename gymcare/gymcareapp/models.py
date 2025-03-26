@@ -73,18 +73,20 @@ class Member(BaseModel):
         return f"Member: {self.user.username}"
 
 
-class TypePackage(BaseModel):
-    type_name = models.CharField(max_length=128, null=False, unique=True)  # month / year / quarter
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=False)
+class TypePackage(IntEnum):
+    MONTH = 0
+    QUARTER = 1
+    YEAR = 2
 
-    def __str__(self):
-        return f"{self.type_name} - {self.price}"
+    @classmethod
+    def choices(cls):
+        return [(package.value, package.name.capitalize()) for package in cls]
 
 
 class TrainingPackage(BaseModel):
     name = models.CharField(max_length=128, null=False, unique=True)
     pt = models.ForeignKey("Trainer", on_delete=models.SET_NULL, null=True, blank=True, related_name="training_packages")
-    type_package = models.ForeignKey(TypePackage, on_delete=models.CASCADE, related_name="training_packages")
+    type_package = models.IntegerField(choices=TypePackage.choices(), default=TypePackage.MONTH)
     start_date = models.DateField(null=False)
     end_date = models.DateField(null=False)
     total_cost = models.DecimalField(max_digits=10, decimal_places=2, null=False)
@@ -146,6 +148,8 @@ class WorkoutScheduleStatus(IntEnum):
     SCHEDULED = 0
     COMPLETED = 1
     CANCELLED = 2
+    PENDING_CHANGE = 3
+    CHANGED = 4
 
     @classmethod
     def choices(cls):
@@ -164,7 +168,6 @@ class TrainingType(IntEnum):
 class WorkoutSchedule(BaseModel):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="workout_schedules")
     training_type = models.IntegerField(choices=TrainingType.choices(), default=TrainingType.SELF_TRAINING.value)
-    # personal_trainer = models.ForeignKey(Trainer, null=True, blank=True, on_delete=models.SET_NULL, related_name="scheduled_sessions")
     scheduled_at = models.DateTimeField(null=False)
     duration = models.IntegerField(null=True)
     status = models.IntegerField(choices=WorkoutScheduleStatus.choices(), default=WorkoutScheduleStatus.SCHEDULED.value)
@@ -173,12 +176,33 @@ class WorkoutSchedule(BaseModel):
         return f"Workout session for {self.subscription.member.user.username} on {self.scheduled_at}"
 
 
+class ChangeRequestStatus(IntEnum):
+    PENDING = 0
+    ACCEPTED = 1
+    REJECTED = 2
+
+    @classmethod
+    def choices(cls):
+        return [(status.value, status.name.capitalize()) for status in cls]
+
+
+class WorkoutScheduleChangeRequest(BaseModel):
+    schedule = models.ForeignKey(WorkoutSchedule, on_delete=models.CASCADE, related_name="change_requests")
+    trainer = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True,related_name="change_requests")
+    proposed_time = models.DateTimeField(null=False)
+    reason = models.TextField(null=True, blank=True)
+    status = models.IntegerField(choices=ChangeRequestStatus.choices(), default=ChangeRequestStatus.PENDING.value)
+
+    def __str__(self):
+        return f"Change request by {self.trainer.user.username} for {self.schedule.subscription.member.user.username}"
+
+
 class Review(BaseModel):
     reviewer = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name="members")
     training_package = models.ForeignKey(TrainingPackage, on_delete=models.CASCADE, related_name="reviews")
     parent_comment = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
     comment = models.TextField(null=True, blank=True)
-    rating = models.IntegerField(null=False)  # Rating scale (e.g., 1-5)
+    rating = models.IntegerField(null=False)  #1-5
 
     def __str__(self):
         return f"Review by {self.reviewer.username} for {self.training_package.name}"
