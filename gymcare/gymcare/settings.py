@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-ets94dt(=!_1jga!$5!pn39_mo0d-c%m=l=#*uoncpq@*a3w2l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 
@@ -38,41 +38,21 @@ INSTALLED_APPS = [
     'gymcareapp.apps.GymcareappConfig',
 
     # Các thư viện cài đặt
-    'ckeditor',
-    'ckeditor_uploader',
     'rest_framework',
     'drf_yasg',
     'oauth2_provider',
+    'django_celery_results',
+    'django_celery_beat',
+    'channels',
+    'corsheaders',
+    'celery',
+    'channels_redis',
 ]
 
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-}
-OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
-
-
-import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
 import os
 load_dotenv()
-from cloudinary.utils import cloudinary_url
 
 # Configuration
 cloudinary.config(
@@ -82,11 +62,39 @@ cloudinary.config(
     secure=True
 )
 
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-CKEDITOR_UPLOAD_PATH = "ckeditors/lessons/"
+
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+
+CORS_ORIGIN_REGEX_WHITELIST = [
+    r"^http://localhost(:[0-9]+)?$", # Regex cho tất cả các port localhost
+    r"^http://127\.0\.0\.1(:[0-9]+)?$", # Regex cho 127.0.0.1 và tất cả các port
+]
 
 
 ROOT_URLCONF = 'gymcare.urls'
+CORS_ALLOW_ALL_ORIGINS = True
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_SEND')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_SEND')
+
 
 TEMPLATES = [
     {
@@ -104,10 +112,30 @@ TEMPLATES = [
     },
 ]
 
+TIME = 86400
+
 WSGI_APPLICATION = 'gymcare.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
 
 DATABASES = {
     'default': {
@@ -147,7 +175,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 USE_I18N = True
 
@@ -162,3 +190,61 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CELERY_RESULT_EXTENDED = True
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE')
+
+CELERY_IMPORTS = ('gymcareapp.tasks',)
+
+
+LOG_DIR = os.path.join(BASE_DIR, 'log')
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR, 'celery_task_log.log'),
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'celery': {  # Celery specific logger
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django': {  # Django's logger (optional)
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+CLIENT_ID="cMLMR6Pw4rN354rQe315815Bo23ldylBEl4Naoyt"
+CLIENT_SECRET="82fLiHAYavDzNaeDJxs8obugctFXGz53iFhB4Q8uKViwCne9zfW4Q6ghblhwQwOzRgesIBOdANDgzK7P6fZJASoDSadUlZFaHSilOOjEMS2lmBTpzUV4atwfLRUDnbEM"
