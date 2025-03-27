@@ -1,12 +1,19 @@
 from rest_framework import permissions
 
-from gymcare.gymcareapp.models import Subscription, Role
+from .models import Subscription, Role, User
 
 
 class OwnerPermission(permissions.IsAuthenticated):
-    def has_object_permission(self, request, view, object):
-        return super().has_permission(request, view) and request.user == object.user
+    def has_object_permission(self, request, view, obj):
+        return super().has_permission(request, view) and request.user == obj.user
 
+
+class OwnerUserPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        return isinstance(obj, User) and request.user == obj
 
 class AdminPermission(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -17,16 +24,24 @@ class AdminPermission(permissions.BasePermission):
 
 class MemberPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return request.user.role == 2
+        return hasattr(request.user, 'member_profile')
+
+    def has_object_permission(self, request, view, obj):
+        return obj.schedule.subscription.member == request.user.member_profile
 
 
 class TrainerPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
+        return request.user.is_authenticated and hasattr(request.user, 'trainer_profile')
+
+    def has_object_permission(self, request, view, obj):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        training_package = getattr(obj.subscription, 'training_package', None)
+
+        if not trainer or not training_package:
             return False
-        return request.user.role == 1
+
+        return training_package.pt == trainer
 
 
 class ReviewPermission(permissions.BasePermission):
@@ -45,7 +60,7 @@ class ReviewPermission(permissions.BasePermission):
             training_package=obj.training_package
         ).exists()
 
-        if request.method == 'PO    ST':
+        if request.method == 'POST':
             return is_subscribed
 
         if request.method in ['PUT', 'PATCH', 'DELETE']:
