@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, generics, permissions, mixins
+from django.http import JsonResponse
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
@@ -12,13 +13,11 @@ from rest_framework.viewsets import ModelViewSet
 from .paginators import Pagination
 from django.utils import timezone
 
-
-
 from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
     WorkoutScheduleChangeRequest, ChangeRequestStatus
 from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission, \
-    IsAdminOrReadOnly, IsAdminOrSelfTrainer
+    IsAdminOrReadOnly, IsAdminOrSelfTrainer, WorkoutScheduleChangeRequest, ChangeRequestStatus, WorkoutProgress
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
     MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer

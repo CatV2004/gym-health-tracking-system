@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'gymcareapp.apps.GymcareappConfig',
-
+    'ckeditor',
+    'ckeditor_uploader',
     # Các thư viện cài đặt
     'rest_framework',
     'drf_yasg',
@@ -50,8 +51,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'celery',
     'channels_redis',
+    'django_flatpickr',
 ]
-
+CKEDITOR_UPLOAD_PATH = "images/trainers/"
 import cloudinary.uploader
 from dotenv import load_dotenv
 import os
@@ -145,7 +147,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'gymcaredb',
         'USER': 'root',
-        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'PASSWORD': 'Admin@123',
         'HOST': '' # mặc định localhost
     }
 }
@@ -187,8 +189,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
-
+STATIC_URL = '/static/'
+MEDIA_URL = '%s/gymcareapp/static/' %BASE_DIR
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
