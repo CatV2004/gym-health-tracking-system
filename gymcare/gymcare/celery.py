@@ -19,6 +19,10 @@ def debug_task(self):
 
 
 celery_app.conf.beat_schedule = {
+'delete-soft-deleted-records-every-day': {
+        'task': 'gymcareapp.tasks.delete_permanently_after_30_days',
+        'schedule': 5,
+    }
 }
 
 celery_app.conf.broker_connection_retry_on_startup = True

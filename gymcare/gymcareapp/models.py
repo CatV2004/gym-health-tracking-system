@@ -7,7 +7,6 @@ from django.utils import timezone
 from enum import IntEnum
 
 
-
 class BaseModel(models.Model):
     created_date = models.DateTimeField(auto_now_add=True, null=True)
     updated_date = models.DateTimeField(auto_now=True, null=True)
@@ -41,7 +40,7 @@ class Role(IntEnum):
 class User(AbstractUser):
     avatar = CloudinaryField('avatar', null=False, blank=False, folder='gymcare',
                              default='https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png')
-    phone = models.CharField(max_length=10, unique=True, null=True)
+    phone = models.CharField(max_length=10, unique=False, null=True)
     email = models.CharField(max_length=50, null=True)
     role = models.IntegerField(
         choices=Role.choices(),
