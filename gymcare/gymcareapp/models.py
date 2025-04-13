@@ -1,11 +1,17 @@
-from pyexpat import model
+from datetime import datetime
+import logging
 
+from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
-from enum import IntEnum
+from enum import IntEnum, Enum
 
+from django.utils.timezone import now
 
 
 class BaseModel(models.Model):
@@ -41,8 +47,10 @@ class Role(IntEnum):
 class User(AbstractUser):
     avatar = CloudinaryField('avatar', null=False, blank=False, folder='gymcare',
                              default='https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png')
-    phone = models.CharField(max_length=10, unique=True, null=True)
-    email = models.CharField(max_length=50, null=True)
+    phone = models.CharField(max_length=10, unique=True, null=True,
+                             validators=[RegexValidator(regex=r'^\d{10}$', message="Số điện thoại phải có 10 chữ số.")]
+)
+    email = models.EmailField(max_length=50,unique=True, null=True, blank=False)
     role = models.IntegerField(
         choices=Role.choices(),
         default=Role.ADMIN.value
@@ -57,18 +65,46 @@ class User(AbstractUser):
 
 class Trainer(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="trainer_profile")
-    certification = models.TextField(null=True, blank=True)
-    experience = models.IntegerField(default=0)
+    certification = RichTextField(config_name='basic', null=True, blank=True)
+    experience = models.IntegerField(default=0, null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+        if self.experience is not None and self.experience < 0:
+            raise ValidationError({"experience": "Experience cannot be negative."})
+
     def __str__(self):
         return f"PT: {self.user.username}"
 
+class GenderEnum(Enum):
+    MALE = 'M'
+    FEMALE = 'F'
+
+    @classmethod
+    def choices(cls):
+        return [(tag.value, tag.name.capitalize()) for tag in cls]
 
 class Member(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="member_profile")
+    gender = models.CharField(
+        max_length=1,
+        choices=GenderEnum.choices(),
+        null=True,
+        blank=True
+    )
+    birth_year = models.IntegerField(null=True, blank=True)
     height = models.FloatField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
     goal = models.TextField(null=True, blank=True)
 
+    def clean(self):
+        super().clean()
+        if self.birth_year:
+            current_year = now().year
+            if self.birth_year < 1900 or self.birth_year >= current_year:
+                raise ValidationError({
+                    "birth_year": f"Invalid year of birth! Please enter from 1900 to {current_year}."
+                })
     def __str__(self):
         return f"Member: {self.user.username}"
 
@@ -85,32 +121,87 @@ class TypePackage(IntEnum):
 
 class TrainingPackage(BaseModel):
     name = models.CharField(max_length=128, null=False, unique=True)
-    pt = models.ForeignKey("Trainer", on_delete=models.SET_NULL, null=True, blank=True, related_name="training_packages")
+    pt = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name="training_packages")
     type_package = models.IntegerField(choices=TypePackage.choices(), default=TypePackage.MONTH)
-    start_date = models.DateField(null=False)
-    end_date = models.DateField(null=False)
-    total_cost = models.DecimalField(max_digits=10, decimal_places=2, null=False)
-
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=False)
+    description = models.TextField(null=True, blank=True)
+    session_count = models.IntegerField(default=0)
     def __str__(self):
         return f"{self.name} ({self.pt})"
 
 
+
 class WorkoutProgress(BaseModel):
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="progresses")
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=False)
     body_fat = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     muscle_mass = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    recorded_by = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name="progresses")
+
+    class Meta:
+        verbose_name = "Workout Progress"
+        verbose_name_plural = "Workout Progresses"
+        ordering = ["-created_date"]
+
+    def clean(self):
+        super().clean()
+        if self.weight_kg <= 0:
+            raise ValidationError({"weight_kg": "Weight must be greater than 0."})
+        if self.body_fat is not None and (self.body_fat < 0 or self.body_fat > 100):
+            raise ValidationError({"body_fat": "Body fat percentage must be between 0 and 100."})
+        if self.muscle_mass is not None and self.muscle_mass < 0:
+            raise ValidationError({"muscle_mass": "Muscle mass must be a positive value."})
 
     def __str__(self):
-        return f"Progress of {self.member.username} on {self.create_date.strftime('%Y-%m-%d')}"
+        member_name = self.member.user.username if self.member else "Unknown Member"
+        date_str = self.created_date.strftime('%Y-%m-%d') if self.created_date else "Unknown Date"
+        return f"Progress of {member_name} on {date_str}"
+class Notification(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(auto_now_add=True)
 
+class SubscriptionStatus(models.IntegerChoices):
+    ACTIVE = 1, "Active"
+    EXPIRED = 2, "Expired"
+    CANCELLED = 3, "Cancelled"
+    PENDING = 4, "Pending"
 
 class Subscription(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="subscriptions")
     training_package = models.ForeignKey(TrainingPackage, on_delete=models.CASCADE, related_name="subscriptions")
+    start_date = models.DateField(null=True, default=timezone.now)
+    end_date = models.DateField(null=True, blank=True)  # Sẽ được tính tự động nếu không được cung cấp
+    status = models.IntegerField(choices=SubscriptionStatus.choices, default=SubscriptionStatus.PENDING)
+    total_cost = models.DecimalField(null=True)
+    quantity = models.IntegerField(default=1)
+    def clean(self):
+        if self.start_date and self.end_date and self.start_date >= self.end_date:
+            raise ValidationError({"end_date": "End date must be after start date."})
+
+    def save(self, *args, **kwargs):
+        if self.start_date and not self.end_date and self.training_package:
+            if self.training_package.type_package == TypePackage.MONTH.value:
+                self.end_date = self.start_date + relativedelta(months=+1)
+            elif self.training_package.type_package == TypePackage.QUARTER.value:
+                self.end_date = self.start_date + relativedelta(months=+3)
+            elif self.training_package.type_package == TypePackage.YEAR.value:
+                self.end_date = self.start_date + relativedelta(years=+1)
+            else:
+                self.end_date = self.start_date + relativedelta(months=+1)
+        super().save(*args, **kwargs)
+
+    @property
+    def total_cost(self):
+        """Tính tổng chi phí dựa trên TrainingPackage (giả sử package đã có thuộc tính total_cost)"""
+        return self.training_package.total_cost
 
     def __str__(self):
-        return f"Subscription of {self.member.user.username} for {self.training_package.name}"
+        return f"{self.member.user.username} - {self.training_package.name} ({self.get_status_display()})"
+    # def __str__(self):
+    #     return f"Subscription of {self.member.user.username} for {self.training_package.name}"
 
 
 class PaymentStatus(IntEnum):
@@ -138,11 +229,18 @@ class Payment(BaseModel):
     amount = models.DecimalField(max_digits=10, decimal_places=2, null=False)
     payment_method = models.IntegerField(choices=PaymentMethod.choices(), null=False)
     payment_status = models.IntegerField(choices=PaymentStatus.choices(), default=PaymentStatus.PENDING.value)
-    receipt_url = models.CharField(max_length=255, null=True, blank=True)
+    receipt_url = CloudinaryField(null = True)
 
     def __str__(self):
         return f"Payment for {self.subscription.member.user.username} - {self.get_payment_status_display()}"
 
+    def clean(self):
+        if self.amount < 0:
+            raise ValidationError({"amount": "Amount cannot be negative."})
+    class Meta:
+        ordering = ['-id']
+        verbose_name = "Payment"
+        verbose_name_plural = "Payments"
 
 class WorkoutScheduleStatus(IntEnum):
     SCHEDULED = 0
@@ -157,18 +255,18 @@ class WorkoutScheduleStatus(IntEnum):
 
 
 class TrainingType(IntEnum):
-    SELF_TRAINING = 0  # Tự tập
-    PERSONAL_TRAINER = 1  # Tập với PT
+    SELF_TRAINING = 0
+    PERSONAL_TRAINER = 1
 
     @classmethod
     def choices(cls):
         return [(t.value, t.name.replace("_", " ").capitalize()) for t in cls]
 
-
+# Lịch tâp luyện
 class WorkoutSchedule(BaseModel):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="workout_schedules")
     training_type = models.IntegerField(choices=TrainingType.choices(), default=TrainingType.SELF_TRAINING.value)
-    scheduled_at = models.DateTimeField(null=False)
+    scheduled_at = models.DateTimeField(null=True)
     duration = models.IntegerField(null=True)
     status = models.IntegerField(choices=WorkoutScheduleStatus.choices(), default=WorkoutScheduleStatus.SCHEDULED.value)
 
@@ -204,5 +302,13 @@ class Review(BaseModel):
     comment = models.TextField(null=True, blank=True)
     rating = models.IntegerField(null=False)  #1-5
 
+    def clean(self):
+        if self.rating <= 2 and not self.comment:
+            raise ValidationError("A comment is required when the rating is 2 or lower.")
+
     def __str__(self):
-        return f"Review by {self.reviewer.username} for {self.training_package.name}"
+        return f"Review by {self.reviewer.user.username} for {self.training_package.name}"
+
+class Report(BaseModel):
+    report_type = models.CharField(max_length=50, choices=[("REVENUE", "Doanh thu"), ("USAGE", "Sử dụng")])
+    data = models.JSONField()

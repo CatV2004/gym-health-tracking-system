@@ -1,0 +1,110 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1 class="admin-header">Thống Kê Số Lượng Hội Viên</h1>
+<p class="total-members">Tổng số hội viên: <strong>{{ total_member_count }}</strong></p>
+
+{% if monthly_member_counts|length == 0 %}
+    <p>Chưa có hội viên nào tham gia trong năm nay.</p>
+{% else %}
+    <!-- Biểu đồ thống kê số lượng hội viên -->
+    <div class="chart-container">
+        <canvas id="memberChart" width="400" height="200"></canvas>
+    </div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    window.onload = function() {
+        var ctx = document.getElementById('memberChart').getContext('2d');
+
+        var monthlyMemberCounts = {{ monthly_member_counts|safe }};
+        var months = {{ months|safe }};
+
+        var backgroundColors = [];
+
+        for (var i = 0; i < monthlyMemberCounts.length; i++) {
+            backgroundColors.push('rgb(' + Math.floor(Math.random() * 256) + ',' + Math.floor(Math.random() * 256) + ',' + Math.floor(Math.random() * 256) + ')');
+        }
+
+        if (monthlyMemberCounts.length > 0) {
+            var memberChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Số lượng hội viên',
+                        data: monthlyMemberCounts,
+                        backgroundColor: backgroundColors,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+</script>
+
+{% block extrahead %}
+    <style>
+        /* CSS cho trang thống kê */
+        .admin-header {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .total-members {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 30px;
+        }
+
+        .total-members strong {
+            font-size: 1.4rem;
+            color: #007bff;
+        }
+
+        .chart-container {
+            max-width: 90%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        canvas {
+            border-radius: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .admin-header {
+                font-size: 1.5rem;
+            }
+
+            .total-members {
+                font-size: 1rem;
+            }
+
+            .chart-container {
+                max-width: 100%;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% endblock %}
