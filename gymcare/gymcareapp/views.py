@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, generics, permissions
+from rest_framework import viewsets, status, generics, permissions, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
@@ -7,6 +7,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_401_UNAUTHORIZED
+from rest_framework.viewsets import ModelViewSet
 
 from .paginators import Pagination
 from django.utils import timezone
@@ -16,15 +17,22 @@ from django.utils import timezone
 from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
     WorkoutScheduleChangeRequest, ChangeRequestStatus
-from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission
+from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission, \
+    IsAdminOrReadOnly, IsAdminOrSelfTrainer
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
     MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer
 
 
-class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
+class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
-    serializer_class = serializers.UserSerializer
+    def get_serializer_class(self):
+        if self.action == 'change_password':
+            return ChangePasswordSerializer
+        elif self.action in ['update', 'partial_update']:
+            return serializers.UpdateUserSerializer
+        return serializers.UserSerializer
+
     def get_permissions(self):
         if self.request.method == 'GET' and self.action == 'get_all_users':
             return [AdminPermission()]
@@ -68,11 +76,13 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self, request, *args, **kwargs):
-        user = self.get_object()
+    @action(methods=['patch'], url_path='update', detail=False)
+    def update_info(self, request, *args, **kwargs):
+        user = request.user
         self.check_object_permissions(request, user)
 
-        serializer = self.get_serializer(user, data=request.data, partial=True)
+        serializer = serializers.UpdateUserSerializer(user, data=request.data, partial=True)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -80,35 +90,37 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class TrainerViewSet(viewsets.ViewSet):
-    queryset = Trainer.objects.select_related('user')
+class TrainerViewSet(mixins.CreateModelMixin,  mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    queryset = Trainer.objects.select_related("user").all()
     serializer_class = TrainerSerializer
-    parser_classes = [JSONParser, MultiPartParser]
+    permission_classes = [IsAuthenticated, IsAdminOrSelfTrainer]
 
-    def get_permissions(self):
-        if self.action in ['available']:
-            return []
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.user.active = False  # Soft delete
+        instance.user.save()
+        return Response({"message": "Trainer deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, methods=['get'])
-    def available(self, request):
-        available_trainers = Trainer.objects.filter(schedule__isnull=True)
-        serializer = self.get_serializer(available_trainers, many=True)
-        return Response(serializer.data)
 
-class MemberViewSet(viewsets.ViewSet):
-    queryset = Member.objects.select_related('user')
+class MemberViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    queryset = Member.objects.select_related("user").all()
     serializer_class = MemberSerializer
-    parser_classes = [JSONParser, MultiPartParser]
+    permission_classes = [IsAuthenticated]
 
-    def get_permissions(self):
-        if self.action in ['pending_progress']:
-            return [TrainerPermission]
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.user.active = False  # Soft delete
+        instance.user.save()
+        return Response({"message": "Member deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, url_path='pending-progress', methods=['get'])
-    def pending_progress(self, request):
-        members = Member.objects.filter(progress__isnull=True)
-        serializer = self.get_serializer(members, many=True)
-        return Response(serializer.data)
+    @action(detail=True, methods=["patch"], url_path="health")
+    def update_health_info(self, request, pk=None):
+        member = self.get_object()
+        for field in ["height", "weight", "goal"]:
+            if field in request.data:
+                setattr(member, field, request.data[field])
+        member.save()
+        return Response({"message": "Health information updated successfully"}, status=status.HTTP_200_OK)
 
 
 class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, generics.ListAPIView):
@@ -339,16 +351,13 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
 
         change_request = get_object_or_404(WorkoutScheduleChangeRequest, pk=pk)
 
-        # Kiểm tra xem lịch này có thuộc về member không
         if change_request.schedule.subscription.member != user.member_profile:
             return Response({"error": "Bạn không có quyền duyệt yêu cầu này."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Lấy trạng thái từ request
         new_status = request.data.get("status")
         if new_status not in [ChangeRequestStatus.ACCEPTED.value, ChangeRequestStatus.REJECTED.value]:
             return Response({"error": "Trạng thái không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Cập nhật trạng thái yêu cầu thay đổi
         change_request.status = new_status
         change_request.save()
 
@@ -361,3 +370,5 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
             change_request.schedule.status = WorkoutScheduleStatus.SCHEDULED.value
             change_request.schedule.save()
             return Response({"message": "Yêu cầu thay đổi đã bị từ chối."}, status=status.HTTP_200_OK)
+
+

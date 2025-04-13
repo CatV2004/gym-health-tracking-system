@@ -17,7 +17,7 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'first_name', 'last_name', 'avatar', "email", "phone", "role"]
+        fields = ['username', 'password', 'first_name', 'last_name', 'avatar', "role"]
         extra_kwargs = {
             'password': {
                 'write_only': True,
@@ -33,6 +33,17 @@ class UserSerializer(ModelSerializer):
 
         return u
 
+
+class UpdateUserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "avatar", "phone", "email"]
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class TrainerSerializer(ModelSerializer):
@@ -124,7 +135,7 @@ class MemberSerializer(ModelSerializer):
         return member
 
 
-class ChangePasswordSerializer(ModelSerializer):
+class ChangePasswordSerializer(serializers.Serializer):
     current_password = CharField(write_only=True, required=True)
     new_password = CharField(write_only=True, required=True)
 
