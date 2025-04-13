@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -15,7 +16,7 @@ from django.utils import timezone
 
 from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
-    WorkoutScheduleChangeRequest, ChangeRequestStatus
+    WorkoutScheduleChangeRequest, ChangeRequestStatus, WorkoutProgress
 from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
@@ -361,3 +362,4 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
             change_request.schedule.status = WorkoutScheduleStatus.SCHEDULED.value
             change_request.schedule.save()
             return Response({"message": "Yêu cầu thay đổi đã bị từ chối."}, status=status.HTTP_200_OK)
+

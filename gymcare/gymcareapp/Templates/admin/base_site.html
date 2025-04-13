@@ -1,0 +1,9 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %} Gym Admin {% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="icon" href="{% static 'admins/iconAdmin.ico' %}" type="image/x-icon">
+{% endblock %}

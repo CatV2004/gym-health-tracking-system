@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1 class="admin-header">Thống Kê Doanh Thu</h1>
+<p class="total-revenue">Tổng doanh thu: <strong>{{ total_revenue|floatformat:2 }}</strong> VND</p>
+
+<!-- Biểu đồ thống kê doanh thu -->
+<div class="chart-container">
+    <canvas id="revenueChart" width="400" height="200"></canvas>
+</div>
+
+<script>
+    window.onload = function() {
+        var ctx = document.getElementById('revenueChart').getContext('2d');
+        var revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ months|safe }},
+                datasets: [{
+                    label: 'Doanh thu theo tháng',
+                    data: {{ monthly_revenue|safe }},
+                    fill: false,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+</script>
+
+{% endblock %}
