@@ -17,4 +17,5 @@ router.register(r'trainer-schedule-changes', TrainerScheduleChangeRequestViewSet
 
 urlpatterns = [
     path('', include(router.urls)),
+
 ]
