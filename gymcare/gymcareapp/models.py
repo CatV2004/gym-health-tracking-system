@@ -44,11 +44,10 @@ class Role(IntEnum):
 
 
 class User(AbstractUser):
-    avatar = CloudinaryField('avatar', null=False, blank=False, folder='gymcare',
+    avatar = CloudinaryField('avatar', blank=False, folder='gymcare',
                              default='https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png')
     phone = models.CharField(max_length=10, unique=True, null=True,
-                             validators=[RegexValidator(regex=r'^\d{10}$', message="Số điện thoại phải có 10 chữ số.")]
-)
+                             validators=[RegexValidator(regex=r'^\d{10}$', message="Số điện thoại phải có 10 chữ số.")])
     email = models.EmailField(max_length=50,unique=True, null=True, blank=False)
     role = models.IntegerField(
         choices=Role.choices(),

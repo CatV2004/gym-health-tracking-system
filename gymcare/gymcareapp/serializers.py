@@ -53,33 +53,46 @@ class TrainerSerializer(ModelSerializer):
         model = Trainer
         fields = ["id", "user", "certification", "experience"]
 
+
+class TrainerRegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username')
+    first_name = serializers.CharField(source='user.first_name')
+    last_name = serializers.CharField(source='user.last_name')
+    email = serializers.EmailField(source='user.email')
+    phone = serializers.CharField(source='user.phone')
+    avatar = serializers.ImageField(source='user.avatar', required=False)
+
+    certification = serializers.CharField()
+    experience = serializers.IntegerField()
+
+    class Meta:
+        model = Trainer
+        fields = [
+            'username', 'first_name', 'last_name', 'email', 'phone', 'avatar',
+            'certification', 'experience'
+        ]
+
     def create(self, validated_data):
         user_data = validated_data.pop('user')
         user_data['role'] = Role.TRAINER.value
         avatar = user_data.pop('avatar', None)
-        password = "pt@123"  # Mặc định cho PT
+        password = "pt@123"
 
         if avatar:
             try:
-                avatar_result = upload(avatar, folder="gymcare")
-                user_data['avatar'] = avatar_result.get('secure_url')
+                result = upload(avatar, folder="gymcare")
+                user_data['avatar'] = result.get('secure_url')
             except Exception as e:
-                raise ValidationError({"avatar": f"Lỗi đăng tải avatar: {str(e)}"})
+                raise serializers.ValidationError({"avatar": f"Lỗi upload: {str(e)}"})
 
-        user = User.objects.create_user(
-            username=user_data.get('username'),
-            password=password,
-            first_name=user_data.get('first_name'),
-            last_name=user_data.get('last_name'),
-            email=user_data.get('email'),
-            avatar=user_data.get('avatar'),
-            phone=user_data.get('phone'),
-            role=user_data.get('role')
+        user = User(
+            **user_data
         )
+        user.set_password(password)
+        user.save()
 
         trainer = Trainer.objects.create(user=user, **validated_data)
 
-        # Gửi email thông báo
         send_email_async.delay(
             subject="Tài khoản Huấn luyện viên đã được tạo",
             message=f"""
@@ -97,6 +110,21 @@ class TrainerSerializer(ModelSerializer):
         )
 
         return trainer
+
+    def to_representation(self, instance):
+        return {
+            "id": instance.user.id,
+            "username": instance.user.username,
+            "first_name": instance.user.first_name,
+            "last_name": instance.user.last_name,
+            "email": instance.user.email,
+            "phone": instance.user.phone,
+            "avatar": instance.user.avatar if instance.user.avatar else '',
+            "role": instance.user.role,
+            "certification": instance.certification,
+            "experience": instance.experience
+        }
+
 
 
 class MemberSerializer(ModelSerializer):
@@ -146,36 +174,18 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
-class MemberRegisterSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-
-    class Meta:
-        model = Member
-        fields = ['user']
+class MemberRegisterSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
 
     def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        user_data['role'] = Role.MEMBER.value
+        password = validated_data.pop("password")
 
-        avatar = user_data.pop('avatar', None)
-        password = user_data.pop('password', None)
-
-        # Xử lý avatar nếu có
-        if avatar:
-            try:
-                upload_result = upload(avatar, folder='gymcare')
-                user_data['avatar'] = upload_result.get('secure_url')
-            except Exception as e:
-                raise serializers.ValidationError({"avatar": f"Lỗi upload avatar: {str(e)}"})
-
-        user = User(
-            username=user_data.get('username'),
-            first_name=user_data.get('first_name'),
-            last_name=user_data.get('last_name'),
-            role=user_data.get('role'),
-            avatar=user_data.get('avatar'),
-        )
+        user = User(**validated_data)
         user.set_password(password)
+        user.role = Role.MEMBER.value
         user.save()
 
         member = Member.objects.create(user=user)
@@ -183,11 +193,11 @@ class MemberRegisterSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return {
-            "id": instance.id,
+            "id": instance.user.id,
             "username": instance.user.username,
             "first_name": instance.user.first_name,
             "last_name": instance.user.last_name,
-            "avatar": instance.user.avatar.url if instance.user.avatar else '',
+            "avatar": instance.user.avatar if instance.user.avatar else '',
             "role": instance.user.role
         }
 
