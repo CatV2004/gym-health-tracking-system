@@ -20,7 +20,8 @@ from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPer
     IsAdminOrReadOnly, IsAdminOrSelfTrainer
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
-    MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer, WorkoutScheduleChangeRequest
+    MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer, \
+    WorkoutScheduleChangeRequest, MemberRegisterSerializer, TrainerRegisterSerializer
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -89,27 +90,49 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class TrainerViewSet(mixins.CreateModelMixin,  mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+class TrainerViewSet(mixins.CreateModelMixin,
+                     mixins.ListModelMixin,
+                     mixins.DestroyModelMixin,
+                     viewsets.GenericViewSet):
     queryset = Trainer.objects.select_related("user").all()
-    serializer_class = TrainerSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrSelfTrainer]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return TrainerRegisterSerializer
+        return TrainerSerializer
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AdminPermission()]
+        return [IsAuthenticated(), IsAdminOrSelfTrainer()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.user.active = False  # Soft delete
+        instance.user.active = False
         instance.user.save()
         return Response({"message": "Trainer deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
-class MemberViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+class MemberViewSet(mixins.CreateModelMixin,
+                    mixins.DestroyModelMixin,
+                    viewsets.GenericViewSet):
     queryset = Member.objects.select_related("user").all()
-    serializer_class = MemberSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return MemberRegisterSerializer
+        return MemberSerializer
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        elif self.action in ['destroy', 'update_health_info']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.user.active = False  # Soft delete
-        instance.user.save()
+        instance.soft_delete()
         return Response({"message": "Member deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["patch"], url_path="health")
@@ -120,6 +143,10 @@ class MemberViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.
                 setattr(member, field, request.data[field])
         member.save()
         return Response({"message": "Health information updated successfully"}, status=status.HTTP_200_OK)
+
+
+
+
 
 
 class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, generics.ListAPIView):
