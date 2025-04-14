@@ -14,8 +14,8 @@ from enum import IntEnum, Enum
 from django.utils.timezone import now
 
 class BaseModel(models.Model):
-    created_date = models.DateTimeField(auto_now_add=True, null=True)
-    updated_date = models.DateTimeField(auto_now=True, null=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True, blank=True)
     active = models.BooleanField(default=True)
 
@@ -35,7 +35,7 @@ class BaseModel(models.Model):
 
 class Role(IntEnum):
     ADMIN = 0
-    TRANER = 1
+    TRAINER = 1
     MEMBER = 2
 
     @classmethod
@@ -118,16 +118,25 @@ class TypePackage(IntEnum):
         return [(package.value, package.name.capitalize()) for package in cls]
 
 
+class CategoryPackage(BaseModel):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
 class TrainingPackage(BaseModel):
     name = models.CharField(max_length=128, null=False, unique=True)
     pt = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name="training_packages")
     type_package = models.IntegerField(choices=TypePackage.choices(), default=TypePackage.MONTH)
     cost = models.DecimalField(max_digits=10, decimal_places=2, null=False)
     description = models.TextField(null=True, blank=True)
-    session_count = models.IntegerField(default=0)
+    session_count = models.IntegerField(default=1)
+    category_package = models.ForeignKey(CategoryPackage, on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name="packages")
     def __str__(self):
         return f"{self.name} ({self.pt})"
-
 
 
 class WorkoutProgress(BaseModel):
@@ -156,17 +165,21 @@ class WorkoutProgress(BaseModel):
         member_name = self.member.user.username if self.member else "Unknown Member"
         date_str = self.created_date.strftime('%Y-%m-%d') if self.created_date else "Unknown Date"
         return f"Progress of {member_name} on {date_str}"
+
+
 class Notification(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     sent_at = models.DateTimeField(auto_now_add=True)
 
+
 class SubscriptionStatus(models.IntegerChoices):
     ACTIVE = 1, "Active"
     EXPIRED = 2, "Expired"
     CANCELLED = 3, "Cancelled"
     PENDING = 4, "Pending"
+
 
 class Subscription(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="subscriptions")

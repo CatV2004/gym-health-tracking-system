@@ -55,7 +55,7 @@ class TrainerSerializer(ModelSerializer):
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
-        user_data['role'] = Role.TRANER.value
+        user_data['role'] = Role.TRAINER.value
         avatar = user_data.pop('avatar', None)
         password = "pt@123"  # Mặc định cho PT
 
@@ -104,7 +104,7 @@ class MemberSerializer(ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ["id", "user", "height", "weight", "goal"]
+        fields = ["id", "user", "height", "weight", "goal", "birth_year", "gender"]
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -146,10 +146,66 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
+class MemberRegisterSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+
+    class Meta:
+        model = Member
+        fields = ['user']
+
+    def create(self, validated_data):
+        user_data = validated_data.pop('user')
+        user_data['role'] = Role.MEMBER.value
+
+        avatar = user_data.pop('avatar', None)
+        password = user_data.pop('password', None)
+
+        # Xử lý avatar nếu có
+        if avatar:
+            try:
+                upload_result = upload(avatar, folder='gymcare')
+                user_data['avatar'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"avatar": f"Lỗi upload avatar: {str(e)}"})
+
+        user = User(
+            username=user_data.get('username'),
+            first_name=user_data.get('first_name'),
+            last_name=user_data.get('last_name'),
+            role=user_data.get('role'),
+            avatar=user_data.get('avatar'),
+        )
+        user.set_password(password)
+        user.save()
+
+        member = Member.objects.create(user=user)
+        return member
+
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "username": instance.user.username,
+            "first_name": instance.user.first_name,
+            "last_name": instance.user.last_name,
+            "avatar": instance.user.avatar.url if instance.user.avatar else '',
+            "role": instance.user.role
+        }
+
+
 class TrainingPackageSerializer(serializers.ModelSerializer):
+    pt = TrainerSerializer(read_only=True)
     class Meta:
         model = TrainingPackage
-        fields = ['id', 'name', 'pt', 'type_package', 'start_date', 'end_date', 'total_cost']
+        fields = [
+            'id',
+            'name',
+            'pt',
+            'type_package',
+            'category_package',
+            'cost',
+            'description',
+            'session_count',
+        ]
 
 
 class TrainingPackageDetailSerializer(TrainingPackageSerializer):
