@@ -15,13 +15,13 @@ from django.utils import timezone
 
 from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
-    WorkoutScheduleChangeRequest, ChangeRequestStatus
+    WorkoutScheduleChangeRequest, ChangeRequestStatus, CategoryPackage
 from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission, \
     IsAdminOrReadOnly, IsAdminOrSelfTrainer
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
     MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer, \
-    WorkoutScheduleChangeRequest, MemberRegisterSerializer, TrainerRegisterSerializer
+    WorkoutScheduleChangeRequest, MemberRegisterSerializer, TrainerRegisterSerializer, CategoryPackageSerializer
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -145,8 +145,16 @@ class MemberViewSet(mixins.CreateModelMixin,
         return Response({"message": "Health information updated successfully"}, status=status.HTTP_200_OK)
 
 
+class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = CategoryPackage.objects.all()
+    serializer_class = CategoryPackageSerializer
 
-
+    @action(detail=True, methods=['get'])
+    def packages(self, request, pk=None):
+        category = self.get_object()
+        packages = category.packages.all()  # dùng related_name="packages"
+        serializer = TrainingPackageSerializer(packages, many=True)
+        return Response(serializer.data)
 
 
 class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, generics.ListAPIView):

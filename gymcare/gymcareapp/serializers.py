@@ -5,7 +5,7 @@ from rest_framework.fields import CharField
 from rest_framework.serializers import ModelSerializer, Serializer
 from django.utils import timezone
 from .models import User, Trainer, Role, Member, WorkoutSchedule, TrainingType, WorkoutScheduleStatus, \
-    WorkoutScheduleChangeRequest, TrainingPackage, Subscription
+    WorkoutScheduleChangeRequest, TrainingPackage, Subscription, CategoryPackage
 from .tasks import send_email_async
 
 
@@ -200,6 +200,12 @@ class MemberRegisterSerializer(serializers.Serializer):
             "avatar": instance.user.avatar if instance.user.avatar else '',
             "role": instance.user.role
         }
+
+
+class CategoryPackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategoryPackage
+        fields = '__all__'
 
 
 class TrainingPackageSerializer(serializers.ModelSerializer):
