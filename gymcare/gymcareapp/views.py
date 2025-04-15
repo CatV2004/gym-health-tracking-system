@@ -17,7 +17,7 @@ from . import serializers
 from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
     WorkoutScheduleChangeRequest, ChangeRequestStatus
 from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission, \
-    IsAdminOrReadOnly, IsAdminOrSelfTrainer, WorkoutScheduleChangeRequest, ChangeRequestStatus, WorkoutProgress
+    IsAdminOrReadOnly, IsAdminOrSelfTrainer
 from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
     TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
     MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer
