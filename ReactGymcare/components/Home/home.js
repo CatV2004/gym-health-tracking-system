@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import styles from "./styles";
 import moment from "moment";
+import api, { endpoint } from "../../configs/API";
 
 const { width: windowWidth } = Dimensions.get("window");
 
@@ -57,8 +58,32 @@ const news = [
 const Home = () => {
   const { user } = useSelector((state) => state.auth);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const [categories, setCategories] = useState([]);
 
-  // State to handle pull-to-refresh
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.get(endpoint.getCategoryPackage);
+        setCategories(res.data);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh mục gói tập:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const handleCategoryPress = async (categoryId) => {
+    try {
+      const res = await api.get(`/category-package/${categoryId}/packages/`);
+      const packages = res.data;
+
+      navigation.navigate("PackageListScreen", { packages, categoryId });
+    } catch (error) {
+      console.error("Lỗi khi lấy gói tập theo danh mục:", error);
+    }
+  };
+
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = () => {
@@ -156,15 +181,15 @@ const Home = () => {
           <View style={styles.packageSection}>
             <Text style={styles.sectionTitle}>Danh mục gói tập</Text>
             <View style={styles.packageContainer}>
-              <TouchableOpacity style={styles.packageItem}>
-                <Text style={styles.packageText}>Gói cơ bản</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.packageItem}>
-                <Text style={styles.packageText}>Gói nâng cao</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.packageItem}>
-                <Text style={styles.packageText}>Gói VIP</Text>
-              </TouchableOpacity>
+              {categories.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.packageItem}
+                  onPress={() => handleCategoryPress(item.id)}
+                >
+                  <Text style={styles.packageText}>{item.name}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 

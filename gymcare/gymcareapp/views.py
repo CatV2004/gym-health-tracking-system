@@ -149,10 +149,13 @@ class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CategoryPackage.objects.all()
     serializer_class = CategoryPackageSerializer
 
+    def get_permissions(self):
+        return [permissions.AllowAny()]
+
     @action(detail=True, methods=['get'])
     def packages(self, request, pk=None):
         category = self.get_object()
-        packages = category.packages.all()  # dùng related_name="packages"
+        packages = category.packages.all()
         serializer = TrainingPackageSerializer(packages, many=True)
         return Response(serializer.data)
 
