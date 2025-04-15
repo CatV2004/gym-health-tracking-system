@@ -1,0 +1,223 @@
+[
+  {
+    "model": "gymcareapp.user",
+    "pk": 1,
+    "fields": {
+      "username": "trainer12",
+      "password": "1",
+      "first_name": "Trainer",
+      "last_name": "Twelve",
+      "email": "trainer12@example.com",
+      "phone": "0123456780",
+      "role": 1,
+      "avatar": "https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png",
+      "is_active": true
+    }
+  },
+  {
+    "model": "gymcareapp.user",
+    "pk": 2,
+    "fields": {
+      "username": "trainer13",
+      "password": "1",
+      "first_name": "Trainer",
+      "last_name": "Thirteen",
+      "email": "trainer13@example.com",
+      "phone": "0123456781",
+      "role": 1,
+      "avatar": "https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png",
+      "is_active": true
+    }
+  },
+  {
+    "model": "gymcareapp.user",
+    "pk": 3,
+    "fields": {
+      "username": "trainer14",
+      "password": "1",
+      "first_name": "Trainer",
+      "last_name": "Fourteen",
+      "email": "trainer14@example.com",
+      "phone": "0123456782",
+      "role": 1,
+      "avatar": "https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png",
+      "is_active": true
+    }
+  },
+  {
+    "model": "gymcareapp.user",
+    "pk": 4,
+    "fields": {
+      "username": "trainer17",
+      "password": "1",
+      "first_name": "Trainer",
+      "last_name": "Seventeen",
+      "email": "trainer17@example.com",
+      "phone": "0123456783",
+      "role": 1,
+      "avatar": "https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png",
+      "is_active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainer",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "certification": "cert A",
+      "experience": 3,
+      "created_date": "2025-04-14T09:07:12",
+      "updated_date": "2025-04-14T09:07:12",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainer",
+    "pk": 2,
+    "fields": {
+      "user": 2,
+      "certification": "cert B",
+      "experience": 2,
+      "created_date": "2025-04-14T09:23:39",
+      "updated_date": "2025-04-14T09:23:39",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainer",
+    "pk": 3,
+    "fields": {
+      "user": 3,
+      "certification": "cert C",
+      "experience": 1,
+      "created_date": "2025-04-14T09:36:57",
+      "updated_date": "2025-04-14T09:36:57",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainer",
+    "pk": 4,
+    "fields": {
+      "user": 4,
+      "certification": "cert D",
+      "experience": 5,
+      "created_date": "2025-04-14T13:45:06",
+      "updated_date": "2025-04-14T13:45:06",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.categorypackage",
+    "pk": 1,
+    "fields": {
+      "name": "Tăng cơ",
+      "description": "Gói tập trung vào phát triển cơ bắp",
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.categorypackage",
+    "pk": 2,
+    "fields": {
+      "name": "Giảm cân",
+      "description": "Gói tập giảm mỡ, thon gọn cơ thể",
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.categorypackage",
+    "pk": 3,
+    "fields": {
+      "name": "Giữ dáng",
+      "description": "Gói tập nhẹ nhàng để duy trì vóc dáng",
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainingpackage",
+    "pk": 1,
+    "fields": {
+      "name": "Tăng cơ 1 tháng",
+      "pt": 1,
+      "type_package": 0,
+      "cost": "1200000.00",
+      "description": "Huấn luyện tăng cơ cấp tốc trong 1 tháng",
+      "session_count": 12,
+      "category_package": 1,
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainingpackage",
+    "pk": 2,
+    "fields": {
+      "name": "Tăng cơ chuyên sâu 3 tháng",
+      "pt": 2,
+      "type_package": 0,
+      "cost": "3000000.00",
+      "description": "Gói tập dài hạn cho người muốn body chuẩn",
+      "session_count": 36,
+      "category_package": 1,
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainingpackage",
+    "pk": 3,
+    "fields": {
+      "name": "Giảm cân cơ bản",
+      "pt": 2,
+      "type_package": 0,
+      "cost": "1000000.00",
+      "description": "Gói tập giảm cân cơ bản cho người mới bắt đầu",
+      "session_count": 10,
+      "category_package": 2,
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainingpackage",
+    "pk": 4,
+    "fields": {
+      "name": "Giảm mỡ chuyên sâu",
+      "pt": 2,
+      "type_package": 0,
+      "cost": "2500000.00",
+      "description": "Gói tập giảm mỡ cho người muốn thay đổi hình thể rõ rệt",
+      "session_count": 30,
+      "category_package": 2,
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  },
+  {
+    "model": "gymcareapp.trainingpackage",
+    "pk": 5,
+    "fields": {
+      "name": "Giữ dáng nhẹ nhàng",
+      "pt": 4,
+      "type_package": 0,
+      "cost": "800000.00",
+      "description": "Gói tập duy trì sức khỏe và vóc dáng",
+      "session_count": 8,
+      "category_package": 3,
+      "created_date": "2025-04-14T14:00:00",
+      "updated_date": "2025-04-14T14:00:00",
+      "active": true
+    }
+  }
+]
