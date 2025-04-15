@@ -6,6 +6,10 @@ export const endpoint = {
   currentUser: "/user/current/",
   updateInfo: "/user/update/",
   changePassword: "/user/change-password/",
+  getCategoryPackage: "/category-package/",
+  getPackagesByCategory: (id) => `/category-package/${id}/packages/`,
+  getPackages: "/training-package/",
+  getPackageDetail: (id) => `/training-package/${id}/`,
   
 };
  
