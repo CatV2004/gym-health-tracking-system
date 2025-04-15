@@ -38,8 +38,6 @@ const Register = () => {
         password: user.password,
         first_name: user.first_name,
         last_name: user.last_name,
-        avatar: "https://res.cloudinary.com/dohsfqs6d/image/upload/v1742786537/gymcare/user.png",
-        role: 2
       });
 
       if (res.status === 201) {

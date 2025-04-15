@@ -1,0 +1,27 @@
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"  # Mở cổng Redis từ Docker sang máy chủ của bạn
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000  # Chạy Django trong Docker
+    volumes:
+      - .:/app  # Mount thư mục dự án vào container
+    ports:
+      - "8000:8000"  # Mở cổng 8000 của Django
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0  # Cấu hình kết nối đến Redis từ Celery
+
+  celery_worker:
+    build: .
+    command: celery -A gymcare worker --loglevel=info  # Chạy Celery worker trong Docker
+    volumes:
+      - .:/app  # Mount thư mục dự án vào container
+    depends_on:
+      - redis  # Celery cần Redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0  # Cấu hình kết nối đến Redis từ Celery
