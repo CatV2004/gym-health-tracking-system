@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const endpoint = {
   login: "/o/token/",
-  register: "/user/",
+  register: "/member/",
   currentUser: "/user/current/",
   updateInfo: "/user/update/",
   changePassword: "/user/change-password/",
