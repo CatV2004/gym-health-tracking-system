@@ -185,8 +185,8 @@ class Subscription(BaseModel):
     training_package = models.ForeignKey(TrainingPackage, on_delete=models.CASCADE, related_name="subscriptions")
     start_date = models.DateField(null=True, default=timezone.now)
     end_date = models.DateField(null=True, blank=True)  # Sẽ được tính tự động nếu không được cung cấp
-    status = models.IntegerField(choices=SubscriptionStatus.choices, default=SubscriptionStatus.PENDING)
-    total_cost = models.DecimalField(null=True)
+    status = models.IntegerField(choices=SubscriptionStatus.choices, default=SubscriptionStatus.ACTIVE)
+    total_cost = models.DecimalField(null=True, max_digits=10, decimal_places=2)
     quantity = models.IntegerField(default=1)
     def clean(self):
         if self.start_date and self.end_date and self.start_date >= self.end_date:
@@ -195,22 +195,19 @@ class Subscription(BaseModel):
     def save(self, *args, **kwargs):
         if self.start_date and not self.end_date and self.training_package:
             if self.training_package.type_package == TypePackage.MONTH.value:
-                self.end_date = self.start_date + relativedelta(months=+1)
+                self.end_date = self.start_date + relativedelta(months=+self.quantity)
             elif self.training_package.type_package == TypePackage.QUARTER.value:
-                self.end_date = self.start_date + relativedelta(months=+3)
+                self.end_date = self.start_date + relativedelta(months=+3 * self.quantity)
             elif self.training_package.type_package == TypePackage.YEAR.value:
-                self.end_date = self.start_date + relativedelta(years=+1)
+                self.end_date = self.start_date + relativedelta(years=+self.quantity)
             else:
-                self.end_date = self.start_date + relativedelta(months=+1)
+                self.end_date = self.start_date + relativedelta(months=+self.quantity)
+
+        if self.training_package:
+            self.total_cost = self.training_package.cost * self.quantity
+
         super().save(*args, **kwargs)
 
-    @property
-    def total_cost(self):
-        """Tính tổng chi phí dựa trên TrainingPackage (giả sử package đã có thuộc tính total_cost)"""
-        return self.training_package.total_cost
-
-    def __str__(self):
-        return f"{self.member.user.username} - {self.training_package.name} ({self.get_status_display()})"
     # def __str__(self):
     #     return f"Subscription of {self.member.user.username} for {self.training_package.name}"
 
@@ -273,7 +270,7 @@ class TrainingType(IntEnum):
     def choices(cls):
         return [(t.value, t.name.replace("_", " ").capitalize()) for t in cls]
 
-# Lịch tâp luyện
+
 class WorkoutSchedule(BaseModel):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="workout_schedules")
     training_type = models.IntegerField(choices=TrainingType.choices(), default=TrainingType.SELF_TRAINING.value)

@@ -238,7 +238,7 @@ LOGGING = {
         },
     },
     'loggers': {
-        'celery': {  # Celery specific logger
+        'celery': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
@@ -251,5 +251,5 @@ LOGGING = {
     },
 }
 
-CLIENT_ID="cMLMR6Pw4rN354rQe315815Bo23ldylBEl4Naoyt"
-CLIENT_SECRET="82fLiHAYavDzNaeDJxs8obugctFXGz53iFhB4Q8uKViwCne9zfW4Q6ghblhwQwOzRgesIBOdANDgzK7P6fZJASoDSadUlZFaHSilOOjEMS2lmBTpzUV4atwfLRUDnbEM"
+CLIENT_ID="vPKe8Hr5r5nXV0cw7FdmUBiRdoC4EXB449hyXvow"
+CLIENT_SECRET="kiVZzuKMmgMzMJldc9x07MSmvpIdCsOvkKHL608ALZQxqXMwI1681uiSbckUKtiiCzwu1aglQvFILY71eGd84TeGT81ETFlRL1TPqXwG9ZXn62PIIkJYvk4WM2EkF3vz"

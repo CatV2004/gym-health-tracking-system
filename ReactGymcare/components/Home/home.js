@@ -15,56 +15,72 @@ import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import styles from "./styles";
 import moment from "moment";
 import api, { endpoint } from "../../configs/API";
+import { useNavigation } from "@react-navigation/native";
 
 const { width: windowWidth } = Dimensions.get("window");
 
 const messages = [
-  "Các lớp học 15 phút để làm các dụng cụ",
-  "Các lớp tập sẽ được đặt lịch trước 2 giờ. Hội viên Signature có thể đặt trước bất kỳ lúc nào.",
-  "Quý hội viên vui lòng đặt lịch trước khi đến phòng tập.",
+  { id: 1, text: "Các lớp học 15 phút để làm các dụng cụ" },
+  {
+    id: 2,
+    text: "Các lớp tập sẽ được đặt lịch trước 2 giờ. Hội viên Signature có thể đặt trước bất kỳ lúc nào.",
+  },
+  { id: 3, text: "Quý hội viên vui lòng đặt lịch trước khi đến phòng tập." },
 ];
 
 const menuItems = [
-  { label: "Đặt lịch tập luyện", iconName: "calendar-month-outline" },
-  { label: "Đặt lịch HLV", iconName: "account-tie" },
-  { label: "Lịch học", iconName: "timetable" },
-  { label: "Mua dịch vụ", iconName: "cart-outline" },
+  { id: 1, label: "Đặt lịch tập luyện", iconName: "calendar-month-outline" },
+  { id: 2, label: "Đặt lịch HLV", iconName: "account-tie" },
+  { id: 3, label: "Lịch học", iconName: "timetable" },
+  { id: 4, label: "Mua dịch vụ", iconName: "cart-outline" },
 ];
 
 const promotions = [
-  { title: "🔥 Combo Hè", description: "Giảm ngay 30% khi đăng ký 3 tháng" },
-  { title: "🎁 Quà tặng", description: "Áo thun thể thao cho hội viên mới" },
-  { title: "💪 Giảm giá", description: "Ưu đãi đặc biệt cho sinh viên" },
+  {
+    id: 1,
+    title: "🔥 Combo Hè",
+    description: "Giảm ngay 30% khi đăng ký 3 tháng",
+  },
+  {
+    id: 2,
+    title: "🎁 Quà tặng",
+    description: "Áo thun thể thao cho hội viên mới",
+  },
+  { id: 3, title: "💪 Giảm giá", description: "Ưu đãi đặc biệt cho sinh viên" },
 ];
 
 const news = [
   {
+    id: 1,
     title: "🎉 Khai giảng lớp học mùa hè",
     description: "Lớp học đặc biệt với chương trình giảm giá cho hội viên mới.",
     date: "2025-05-10",
   },
   {
+    id: 2,
     title: "💼 Mở rộng dịch vụ thể hình",
     description: "Thêm các gói tập mới dành cho mọi đối tượng.",
     date: "2025-04-25",
   },
   {
+    id: 3,
     title: "🏅 Chương trình giảm giá mùa thu",
     description: "Giảm 20% cho tất cả các dịch vụ từ tháng 9.",
     date: "2025-09-01",
   },
 ];
 
-const Home = () => {
+const Home = ({ navigation }) => {
   const { user } = useSelector((state) => state.auth);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [categories, setCategories] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await api.get(endpoint.getCategoryPackage);
-        setCategories(res.data);
+        setCategories(res.data.results);
       } catch (error) {
         console.error("Lỗi khi lấy danh mục gói tập:", error);
       }
@@ -73,25 +89,20 @@ const Home = () => {
     fetchCategories();
   }, []);
 
-  const handleCategoryPress = async (categoryId) => {
-    try {
-      const res = await api.get(`/category-package/${categoryId}/packages/`);
-      const packages = res.data;
-
-      navigation.navigate("PackageListScreen", { packages, categoryId });
-    } catch (error) {
-      console.error("Lỗi khi lấy gói tập theo danh mục:", error);
-    }
+  const handleCategoryPress = (categoryId, categoryName) => {
+    navigation.navigate("PackageListScreen", { categoryId, categoryName });
   };
 
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-
-    setTimeout(() => {
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      const res = await api.get(endpoint.getCategoryPackage);
+      setCategories(res.data.results);
       setRefreshing(false);
-    }, 2000);
+    } catch (error) {
+      console.error("Lỗi khi tải lại dữ liệu:", error);
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -124,10 +135,10 @@ const Home = () => {
             )}
             scrollEventThrottle={16}
           >
-            {messages.map((msg, index) => (
-              <View key={index} style={styles.messageBox}>
+            {messages.map((msg) => (
+              <View key={msg.id} style={styles.messageBox}>
                 <View style={styles.textContainer}>
-                  <Text style={styles.messageText}>{msg}</Text>
+                  <Text style={styles.messageText}>{msg.text}</Text>
                 </View>
               </View>
             ))}
@@ -164,8 +175,8 @@ const Home = () => {
         >
           {/* Menu */}
           <View style={styles.menu}>
-            {menuItems.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.menuItem}>
+            {menuItems.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.menuItem}>
                 <Icon
                   name={item.iconName}
                   size={30}
@@ -181,15 +192,16 @@ const Home = () => {
           <View style={styles.packageSection}>
             <Text style={styles.sectionTitle}>Danh mục gói tập</Text>
             <View style={styles.packageContainer}>
-              {categories.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.packageItem}
-                  onPress={() => handleCategoryPress(item.id)}
-                >
-                  <Text style={styles.packageText}>{item.name}</Text>
-                </TouchableOpacity>
-              ))}
+              {Array.isArray(categories) &&
+                categories.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.packageItem}
+                    onPress={() => handleCategoryPress(item.id, item.name)}
+                  >
+                    <Text style={styles.packageText}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
             </View>
           </View>
 
@@ -201,8 +213,8 @@ const Home = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16 }}
             >
-              {promotions.map((promo, index) => (
-                <View key={index} style={styles.promotionCard}>
+              {promotions.map((promo) => (
+                <View key={promo.id} style={styles.promotionCard}>
                   <Text style={styles.promotionTitle}>{promo.title}</Text>
                   <Text style={styles.promotionDescription}>
                     {promo.description}
@@ -219,8 +231,8 @@ const Home = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16 }}
             >
-              {news.map((item, index) => (
-                <View key={index} style={styles.newsCard}>
+              {news.map((item) => (
+                <View key={item.id} style={styles.newsCard}>
                   <Text style={styles.newsTitle}>{item.title}</Text>
                   <Text style={styles.newsDescription}>{item.description}</Text>
                   <Text style={styles.newsDate}>
