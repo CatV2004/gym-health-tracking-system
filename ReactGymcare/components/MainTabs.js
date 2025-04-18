@@ -5,6 +5,7 @@ import Profile from "./User/profile";
 import Home from "./Home/home";  
 import LoginStack from "./User/loginStack";
 import { useSelector } from "react-redux";
+import HomeStackScreen from "./HomeStackScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,7 +19,7 @@ const MainTabs = () => {
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
           let iconName;
-          if (route.name === "Home") {
+          if (route.name === "HomeTab") {
             iconName = "home-outline";
           } else if (route.name === "LoginStack") {
             iconName = "log-in-outline";
@@ -43,7 +44,7 @@ const MainTabs = () => {
         },
       })}
     >
-      <Tab.Screen name="Home" component={Home} />
+      <Tab.Screen name="HomeTab" component={HomeStackScreen} />
       {token ? (
         <Tab.Screen name="Account" component={Profile} />
       ) : (

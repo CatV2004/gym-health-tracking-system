@@ -7,7 +7,8 @@ export const endpoint = {
   updateInfo: "/user/update/",
   changePassword: "/user/change-password/",
   getCategoryPackage: "/category-package/",
-  getPackagesByCategory: (id) => `/category-package/${id}/packages/`,
+  getPackagesByCategory: (id, page = 1, pageSize = 5) => 
+    `/category-package/${id}/packages/?page=${page}&page_size=${pageSize}`,
   getPackages: "/training-package/",
   getPackageDetail: (id) => `/training-package/${id}/`,
   

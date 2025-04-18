@@ -9,19 +9,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_401_UNAUTHORIZED
 from rest_framework.viewsets import ModelViewSet
+from django.db.models import Count
 
 from .paginators import Pagination
 from django.utils import timezone
 
 from . import serializers
-from .models import User, Member, Trainer, WorkoutSchedule, WorkoutScheduleStatus, Role, Subscription, TrainingPackage, \
-    WorkoutScheduleChangeRequest, ChangeRequestStatus, CategoryPackage
-from .pems import OwnerPermission, AdminPermission, TrainerPermission, MemberPermission, OwnerUserPermission, \
-    IsAdminOrReadOnly, IsAdminOrSelfTrainer
-from .serializers import UserSerializer, ChangePasswordSerializer, MemberSerializer, TrainerSerializer, \
-    TrainingPackageSerializer, TrainingPackageDetailSerializer, WorkoutScheduleCreateSerializer, \
-    MemberSubscriptionSerializer, WorkoutScheduleSerializer, WorkoutScheduleChangeRequestSerializer, \
-    WorkoutScheduleChangeRequest, MemberRegisterSerializer, TrainerRegisterSerializer, CategoryPackageSerializer
+from .models import *
+from .pems import *
+from .serializers import UserSerializer, CategoryPackageSerializer, TrainingPackageSerializer, \
+    UpdateUserSerializer, TrainerSerializer, TrainerRegisterSerializer, MemberSerializer, \
+    ChangePasswordSerializer, MemberRegisterSerializer, TrainingPackageDetailSerializer, \
+    SubscriptionSerializer, SubscriptionCreateSerializer, WorkoutScheduleCreateSerializer, \
+    WorkoutScheduleTrainerSerializer
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -112,6 +112,29 @@ class TrainerViewSet(mixins.CreateModelMixin,
         instance.user.save()
         return Response({"message": "Trainer deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=False, methods=['get'], url_path='workout-schedules')
+    def workout_schedules(self, request):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        schedules = WorkoutSchedule.objects.filter(
+            subscription__training_package__trainer=trainer
+        ).select_related(
+            'subscription__member__user',
+            'subscription__training_package'
+        ).order_by('-scheduled_at')
+
+        page = self.paginate_queryset(schedules)
+        serializer = WorkoutScheduleTrainerSerializer(page if page is not None else schedules, many=True)
+
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+
+        return Response({
+            "message": "Danh sách lịch tập của hội viên trong gói bạn phụ trách.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 class MemberViewSet(mixins.CreateModelMixin,
                     mixins.DestroyModelMixin,
@@ -147,7 +170,14 @@ class MemberViewSet(mixins.CreateModelMixin,
 
 class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CategoryPackage.objects.all()
+
     serializer_class = CategoryPackageSerializer
+    class CustomPagination(PageNumberPagination):
+        page_size = 5
+        page_size_query_param = 'page_size'
+        max_page_size = 100
+
+    pagination_class = CustomPagination
 
     def get_permissions(self):
         return [permissions.AllowAny()]
@@ -156,7 +186,14 @@ class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
     def packages(self, request, pk=None):
         category = self.get_object()
         packages = category.packages.all()
-        serializer = TrainingPackageSerializer(packages, many=True)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(packages, request, view=self)
+        if page is not None:
+            serializer = TrainingPackageSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = TrainingPackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -171,6 +208,11 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
             return [MemberPermission()]
         return [permissions.AllowAny()]
 
+    def get_serializer_class(self):
+        if self.action == 'subscribe':
+            return SubscriptionSerializer
+        return super().get_serializer_class()
+
     def get_member(self, request):
         user = request.user
         if not user or not user.is_authenticated:
@@ -179,233 +221,76 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
             return None, Response({"error": "Bạn không phải là hội viên."}, status=status.HTTP_403_FORBIDDEN)
         return user.member_profile, None
 
-    @action(methods=['post'], detail=True, url_path='subscribe')
-    def subscribe(self, request, pk=None):
-        member, error_response = self.get_member(request)
-        if error_response:
-            return error_response
 
-        training_package = TrainingPackage.objects.filter(id=pk).first()
-        if not training_package:
-            return Response({"error": "Gói tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
-
-        subscription = Subscription.objects.filter(member=member, training_package=training_package, active=True).first()
-        if subscription:
-            return Response({"message": "Bạn đã đăng ký gói tập này rồi."}, status=status.HTTP_400_BAD_REQUEST)
-
-        subscription, created = Subscription.objects.update_or_create(
-            member=member,
-            training_package=training_package,
-            defaults={"active": True}
-        )
-
-        return Response(
-            TrainingPackageSerializer(training_package, context={"request": request}).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        )
-
-
-class TrainerPackageViewSet(viewsets.ViewSet):
-    queryset = TrainingPackage.objects.all()
+class TrainerPackageViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TrainingPackageSerializer
-    pagination_class = Pagination
-    lookup_field = "id"
+    permission_classes = [TrainerPermission]
+
+    def get_queryset(self):
+        return TrainingPackage.objects.filter(
+            pt__user=self.request.user,
+            active=True
+        ).annotate(member_count=Count('subscriptions')).select_related('pt__user')
+
+
+class MemberSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = SubscriptionSerializer
+    permission_classes = [MemberPermission]
+
+    def get_queryset(self):
+        return Subscription.objects.filter(
+            member__user=self.request.user,
+            active=True
+        ).select_related('training_package', 'training_package__pt')
+
+
+class SubscriptionViewSet(viewsets.GenericViewSet):
+    queryset = Subscription.objects.all()
+    serializer_class = SubscriptionCreateSerializer
 
     def get_permissions(self):
-        if self.action in ['trainer_packages', 'package_detail']:
-            return [TrainerPermission()]
-        return []
-
-    @action(detail=False, methods=["get"], url_path="my-packages")
-    def trainer_packages(self, request):
-        user = request.user
-        if not hasattr(user, 'trainer_profile'):
-            return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
-
-        packages = TrainingPackage.objects.filter(pt=user.trainer_profile)#.prefetch_related("subscriptions__member")
-        serializer = TrainingPackageSerializer(packages, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=["get"], url_path="package")
-    def package_detail(self, request, id=None):
-        user = request.user
-        if not hasattr(user, 'trainer_profile'):
-            return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
-
-        package = get_object_or_404(TrainingPackage, id=id, pt=user.trainer_profile)
-        serializer = TrainingPackageSerializer(package)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class MemberSubscriptionViewSet(viewsets.ViewSet):
-    pagination_class = Pagination
-
-    def get_permissions(self):
-        if self.action in ['my_subscriptions', 'subscription_detail', 'schedule_workout']:
-            return [MemberPermission()]
-        return super().get_permissions()
-
-    @action(detail=False, methods=["get"], url_path="my-packages")
-    def my_subscriptions(self, request):
-        user = request.user
-        subscriptions = Subscription.objects.filter(member=user.member_profile, active=True)
-        serializer = MemberSubscriptionSerializer(subscriptions, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=["get"], url_path="package")
-    def subscription_detail(self, request, pk=None):
-        user = request.user
-        try:
-            subscription = Subscription.objects.get(id=pk, member=user.member_profile, active=True)
-        except Subscription.DoesNotExist:
-            return Response({"error": "Không tìm thấy gói tập hoặc không thuộc về bạn."},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        serializer = MemberSubscriptionSerializer(subscription)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=["post"], url_path="schedule")
-    def schedule_workout(self, request, pk=None):
-        user = request.user
-        try:
-            subscription = Subscription.objects.get(id=pk, member=user.member_profile, active=True)
-        except Subscription.DoesNotExist:
-            return Response({"error": "Gói tập không hợp lệ hoặc không thuộc về bạn."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = WorkoutScheduleCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            scheduled_at = serializer.validated_data['scheduled_at']
-            duration = serializer.validated_data['duration']
-            end_time = scheduled_at + timezone.timedelta(minutes=duration)
-
-            overlapping_schedule = WorkoutSchedule.objects.filter(
-                subscription__member=user.member_profile,
-                scheduled_at__lt=end_time,
-            ).exclude(scheduled_at__gte=scheduled_at + timezone.timedelta(
-                minutes=duration))
-
-            if overlapping_schedule.exists():
-                return Response({"error": "Bạn đã có một buổi tập trùng thời gian này."},
-                                status=status.HTTP_400_BAD_REQUEST)
-
-            serializer.save(subscription=subscription, status=0)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class TrainerWorkoutScheduleViewSet(viewsets.ViewSet):
-    pagination_class = Pagination
-    def get_permissions(self):
-        if self.action in ['workout_schedules']:
-            return [TrainerPermission()]
-
-    @action(detail=True, methods=["get"], url_path="workout-schedules")
-    def workout_schedules(self, request, pk=None):
-        user = request.user
-
-        if not hasattr(user, 'trainer_profile'):
-            return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
-
-        training_package = get_object_or_404(TrainingPackage, pk=pk, pt=user.trainer_profile)
-
-        workout_schedules = WorkoutSchedule.objects.filter(subscription__training_package=training_package)
-
-        serializer = WorkoutScheduleSerializer(workout_schedules, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class TrainerScheduleApprovalViewSet(viewsets.ViewSet):
-    def get_permissions(self):
-        if self.action in ['approve_or_reject_schedule']:
-            return [TrainerPermission()]
-        return []
-
-    @action(detail=True, methods=["patch"], url_path="approve-or-reject")
-    def approve_or_reject_schedule(self, request, pk=None):
-        user = request.user
-
-        if not hasattr(user, 'trainer_profile'):
-            return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
-
-        schedule = get_object_or_404(WorkoutSchedule, id=pk)
-
-        self.check_object_permissions(request, schedule)
-
-        new_status = request.data.get("status")
-        if new_status not in [WorkoutScheduleStatus.COMPLETED.value, WorkoutScheduleStatus.CANCELLED.value]:
-            return Response({"error": "Trạng thái không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
-
-        schedule.status = new_status
-        schedule.save()
-
-        return Response({"message": "Cập nhật trạng thái thành công!"}, status=status.HTTP_200_OK)
-
-
-
-class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
-    def get_permissions(self):
-        if self.action in ['approve_or_reject_schedule']:
-            return [TrainerPermission()]
-        elif self.action in ['approve_or_reject_change_request']:
+        if self.action in ['create']:
             return [MemberPermission()]
         return []
 
-    @action(detail=True, methods=["post"], url_path="request-change")
-    def request_schedule_change(self, request, pk=None):
-        user = request.user
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated or not hasattr(user, 'member_profile'):
+            return Subscription.objects.none()
 
-        if not hasattr(user, 'trainer_profile'):
-            return Response({"error": "Bạn không phải là PT."}, status=status.HTTP_403_FORBIDDEN)
+        return self.queryset.filter(member=user.member_profile, active=True)
 
-        schedule = get_object_or_404(WorkoutSchedule, id=pk)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subscription = serializer.save()
+        return Response({
+            "message": "Đăng ký gói tập thành công.",
+                "data": SubscriptionCreateSerializer(subscription).data
+        }, status=status.HTTP_201_CREATED)
 
-        proposed_time = request.data.get("proposed_time")
-        reason = request.data.get("reason", "")
 
-        if not proposed_time:
-            return Response({"error": "Vui lòng cung cấp thời gian đề xuất."}, status=status.HTTP_400_BAD_REQUEST)
+class WorkoutScheduleViewSet(viewsets.GenericViewSet,
+                             viewsets.mixins.CreateModelMixin,
+                             viewsets.mixins.ListModelMixin):
+    queryset = WorkoutSchedule.objects.all()
+    serializer_class = WorkoutScheduleCreateSerializer
+    permission_classes = [MemberPermission]
 
-        change_request = WorkoutScheduleChangeRequest.objects.create(
-            schedule=schedule,
-            trainer=user.trainer_profile,
-            proposed_time=proposed_time,
-            reason=reason,
-            status=ChangeRequestStatus.PENDING.value
-        )
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated or not hasattr(user, 'member_profile'):
+            return WorkoutSchedule.objects.none()
+        return self.queryset.filter(subscription__member=user.member_profile)
 
-        schedule.status = WorkoutScheduleStatus.PENDING_CHANGE.value
-        schedule.save()
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        workout_schedule = serializer.save()
+        return Response({
+            "message": "Lên lịch tập thành công.",
+            "data": WorkoutScheduleCreateSerializer(workout_schedule).data
+        }, status=status.HTTP_201_CREATED)
 
-        return Response(WorkoutScheduleChangeRequestSerializer(change_request).data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=["patch"], url_path="approve-or-reject")
-    def approve_or_reject_change_request(self, request, pk=None):
-        user = request.user
-
-        if not hasattr(user, 'member_profile'):
-            return Response({"error": "Bạn không phải là hội viên."}, status=status.HTTP_403_FORBIDDEN)
-
-        change_request = get_object_or_404(WorkoutScheduleChangeRequest, pk=pk)
-
-        if change_request.schedule.subscription.member != user.member_profile:
-            return Response({"error": "Bạn không có quyền duyệt yêu cầu này."}, status=status.HTTP_403_FORBIDDEN)
-
-        new_status = request.data.get("status")
-        if new_status not in [ChangeRequestStatus.ACCEPTED.value, ChangeRequestStatus.REJECTED.value]:
-            return Response({"error": "Trạng thái không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
-
-        change_request.status = new_status
-        change_request.save()
-
-        if new_status == ChangeRequestStatus.ACCEPTED.value:
-            change_request.schedule.scheduled_at = change_request.proposed_time
-            change_request.schedule.status = WorkoutScheduleStatus.CHANGED.value
-            change_request.schedule.save()
-            return Response({"message": "Lịch tập đã được cập nhật."}, status=status.HTTP_200_OK)
-        else:
-            change_request.schedule.status = WorkoutScheduleStatus.SCHEDULED.value
-            change_request.schedule.save()
-            return Response({"message": "Yêu cầu thay đổi đã bị từ chối."}, status=status.HTTP_200_OK)
 
 

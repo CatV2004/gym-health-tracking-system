@@ -1,6 +1,6 @@
 from rest_framework import permissions
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from .models import Subscription, Role, User
+from .models import Subscription, Role, User, TrainingPackage
 
 
 class IsAdminOrReadOnly(BasePermission):
@@ -39,10 +39,23 @@ class AdminPermission(permissions.BasePermission):
 
 class MemberPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        return hasattr(request.user, 'member_profile')
+        return request.user.is_authenticated and hasattr(request.user, 'member_profile')
 
     def has_object_permission(self, request, view, obj):
-        return obj.schedule.subscription.member == request.user.member_profile
+        member = getattr(request.user, 'member_profile', None)
+        if not member:
+            return False
+
+        if isinstance(obj, Subscription):
+            return obj.member == member
+
+        if isinstance(obj, WorkoutSchedule):
+            return obj.subscription.member == member
+
+        if hasattr(obj, 'schedule') and hasattr(obj.schedule, 'subscription'):
+            return obj.schedule.subscription.member == member
+
+        return False
 
 
 class TrainerPermission(permissions.BasePermission):
@@ -51,12 +64,17 @@ class TrainerPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         trainer = getattr(request.user, 'trainer_profile', None)
-        training_package = getattr(obj.subscription, 'training_package', None)
 
-        if not trainer or not training_package:
+        if not trainer:
             return False
 
-        return training_package.pt == trainer
+        if isinstance(obj, Subscription):
+            return obj.training_package.pt == trainer
+
+        if isinstance(obj, TrainingPackage):
+            return obj.pt == trainer
+
+        return False
 
 
 class ReviewPermission(permissions.BasePermission):

@@ -17,9 +17,9 @@ const LoginAction = (username, password) => async (dispatch) => {
     const response = await api.post(endpoint.login, {
       username,
       password,
-      client_id: "cMLMR6Pw4rN354rQe315815Bo23ldylBEl4Naoyt",
+      client_id: "gKjOnXCtkmn6GfZAMEeewQplgwVywVDVXnzU5Ztt",
       client_secret:
-        "82fLiHAYavDzNaeDJxs8obugctFXGz53iFhB4Q8uKViwCne9zfW4Q6ghblhwQwOzRgesIBOdANDgzK7P6fZJASoDSadUlZFaHSilOOjEMS2lmBTpzUV4atwfLRUDnbEM",
+        "FZQrdEYn1AQAVefN5Hzd2DqeAfhzB1CxecMYqB3owcAoZDRn17aaQiGGTHIfZGuLdwCc0dCOKFGSGKTPkkLNJyGaHsNsdat9yrajmSS3eH1T9cbR04YUJNRB49QytDZB",
       grant_type: "password",
     });
 
