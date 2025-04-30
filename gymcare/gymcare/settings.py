@@ -24,9 +24,10 @@ SECRET_KEY = 'django-insecure-ets94dt(=!_1jga!$5!pn39_mo0d-c%m=l=#*uoncpq@*a3w2l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','192.168.253.1']
+ALLOWED_HOSTS = ['*']
 CORS_ALLOWED_ORIGINS = [
     "http://192.168.253.1:3000",
+    "https://8949-125-235-239-76.ngrok-free.app",
 ]
 
 # Application definition
@@ -66,6 +67,24 @@ cloudinary.config(
     api_secret = os.getenv("API_SECRET"),
     secure=True
 )
+
+
+VNPAY_CONFIG = {
+    "vnp_TmnCode": os.getenv("VNP_TMNCODE"),
+    "vnp_HashSecret": os.getenv("VNP_HASHSECRET"),
+    "vnp_Url": os.getenv("VNP_URL"),
+    "vnp_ReturnUrl": os.getenv("VNP_RETURNURL"),
+}
+
+ZALOPAY_CONFIG = {
+    "app_id": os.getenv("ZALOPAY_APP_ID"),
+    "key1": os.getenv("ZALOPAY_KEY1"),
+    "key2": os.getenv("ZALOPAY_KEY2"),
+    'callback_url': os.getenv("ZALOPAY_CALLBACK_URL")
+}
+
+
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
