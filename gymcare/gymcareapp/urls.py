@@ -1,22 +1,24 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import TrainingPackageViewSet, TrainerPackageViewSet, MemberSubscriptionViewSet, \
-    TrainerWorkoutScheduleViewSet, TrainerScheduleApprovalViewSet, TrainerScheduleChangeRequestViewSet, CategoryPackageViewSet
 
 router = DefaultRouter()
 router.register('user', views.UserViewSet, basename='user')
 router.register('trainer', views.TrainerViewSet, basename='trainer')
 router.register('member', views.MemberViewSet, basename='member')
-router.register('category-package', views.CategoryPackageViewSet, basename='category-package')
-router.register('trainer-workout-schedule', TrainerWorkoutScheduleViewSet, basename='trainer-workout-schedule')
-router.register('training-package', TrainingPackageViewSet, basename='training-package')
-router.register('trainer-packages', TrainerPackageViewSet, basename='trainer-packages')
-router.register('member-subscriptions', MemberSubscriptionViewSet, basename='member-Subscriptions')
-router.register(r'trainer-schedules', TrainerScheduleApprovalViewSet, basename='trainer-schedules')
-router.register(r'trainer-schedule-changes', TrainerScheduleChangeRequestViewSet, basename='trainer-schedule-changes')
+router.register('category-packages', views.CategoryPackageViewSet, basename='category-packages')
+router.register('training-package', views.TrainingPackageViewSet, basename='training-package')
+router.register('trainer-packages', views.TrainerPackageViewSet, basename='trainer-packages')
+router.register('member-subscriptions', views.MemberSubscriptionViewSet, basename='member-Subscriptions')
+router.register('subscriptions', views.SubscriptionViewSet, basename='subscription')
+router.register('workout-schedules', views.WorkoutScheduleViewSet, basename='workout-schedule')
+router.register('payment', views.PaymentViewSet, basename='payment')
 
 urlpatterns = [
+    path('payment/<int:pk>/zalopay-order/', views.ZaloPayOrderView.as_view(), name='zalopay-order'),
+    path('api/payments/create/', views.PaymentView.as_view(), name='create_payment'),
+    path('api/payments/payment_return/', views.PaymentReturnView.as_view(), name='payment_return'),
+    path('api/payments/ipn/', views.PaymentIPNView.as_view(), name='payment_ipn'),
+    path('api/payments/update_status/', views.UpdatePaymentStatusView.as_view(), name='update_payment_status'),
     path('', include(router.urls)),
-
 ]

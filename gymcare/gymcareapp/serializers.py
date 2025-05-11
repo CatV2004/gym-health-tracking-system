@@ -5,8 +5,12 @@ from rest_framework.fields import CharField
 from rest_framework.serializers import ModelSerializer, Serializer
 from django.utils import timezone
 from .models import User, Trainer, Role, Member, WorkoutSchedule, TrainingType, WorkoutScheduleStatus, \
-    WorkoutScheduleChangeRequest, TrainingPackage, Subscription, CategoryPackage
+    WorkoutScheduleChangeRequest, TrainingPackage, Subscription, CategoryPackage, SubscriptionStatus, Payment
 from .tasks import send_email_async
+from datetime import timedelta
+from django.db.models import Q
+from django import forms
+
 
 
 class UserSerializer(ModelSerializer):
@@ -17,7 +21,7 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'first_name', 'last_name', 'avatar', "role"]
+        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'avatar', "role"]
         extra_kwargs = {
             'password': {
                 'write_only': True,
@@ -34,7 +38,18 @@ class UserSerializer(ModelSerializer):
         return u
 
 
+class CurrentUserSerializer(ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'avatar', 'phone', 'email', 'role']
+
+    def get_avatar(self, obj):
+        return obj.avatar_url
+
+
 class UpdateUserSerializer(ModelSerializer):
+    avatar = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = ["first_name", "last_name", "avatar", "phone", "email"]
@@ -44,6 +59,9 @@ class UpdateUserSerializer(ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+    def get_avatar(self, obj):
+        return obj.avatar_url
 
 
 class TrainerSerializer(ModelSerializer):
@@ -163,6 +181,12 @@ class MemberSerializer(ModelSerializer):
         return member
 
 
+class MemberHealthUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Member
+        fields = ['gender', 'birth_year', 'height', 'weight', 'goal']
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = CharField(write_only=True, required=True)
     new_password = CharField(write_only=True, required=True)
@@ -210,6 +234,7 @@ class CategoryPackageSerializer(serializers.ModelSerializer):
 
 class TrainingPackageSerializer(serializers.ModelSerializer):
     pt = TrainerSerializer(read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
     class Meta:
         model = TrainingPackage
         fields = [
@@ -221,6 +246,7 @@ class TrainingPackageSerializer(serializers.ModelSerializer):
             'cost',
             'description',
             'session_count',
+            'member_count',
         ]
 
 
@@ -229,12 +255,15 @@ class TrainingPackageDetailSerializer(TrainingPackageSerializer):
 
     def get_subscribed(self, training_package):
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
+        user = request.user if request else None
+
+        if user and user.is_authenticated and hasattr(user, "member_profile"):
             return Subscription.objects.filter(
-                member=request.user.member_profile,
+                member=user.member_profile,
                 training_package=training_package,
                 active=True
             ).exists()
+
         return False
 
     class Meta:
@@ -242,39 +271,224 @@ class TrainingPackageDetailSerializer(TrainingPackageSerializer):
         fields = TrainingPackageSerializer.Meta.fields + ['subscribed']
 
 
-class MemberSubscriptionSerializer(serializers.ModelSerializer):
-    training_package = TrainingPackageSerializer()
+class SubscriptionSerializer(serializers.ModelSerializer):
+    training_package_name = serializers.CharField(source='training_package.name', read_only=True)
+    pt_name = serializers.CharField(source='training_package.pt.user.username', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = Subscription
-        fields = ['id', 'member', 'training_package', 'active']
+        fields = ['id', 'training_package_name', 'pt_name', 'start_date', 'end_date', 'status', 'status_display', 'total_cost', 'quantity']
 
 
-class WorkoutScheduleSerializer(serializers.ModelSerializer):
-    member_name = serializers.CharField(source="subscription.member.user.username", read_only=True)
+class SubscriptionCreateSerializer(serializers.ModelSerializer):
+    training_package = serializers.PrimaryKeyRelatedField(queryset=TrainingPackage.objects.filter(active=True))
+    start_date = serializers.DateField()
+    quantity = serializers.IntegerField(required=False, min_value=1)
 
     class Meta:
-        model = WorkoutSchedule
-        fields = ["id", "member_name", "training_type", "scheduled_at", "duration", "status"]
+        model = Subscription
+        fields = ['training_package', 'start_date', 'quantity']
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+
+        if not hasattr(user, 'member_profile'):
+            raise serializers.ValidationError("Chỉ hội viên mới có thể đăng ký gói tập.")
+
+        member = user.member_profile
+        training_package = attrs['training_package']
+
+        existing = Subscription.objects.filter(
+            member=member,
+            training_package=training_package,
+            status=SubscriptionStatus.ACTIVE,
+            end_date__gte=timezone.now().date()
+        ).exists()
+
+        if existing:
+            raise serializers.ValidationError("Bạn đã có gói tập này đang hoạt động.")
+
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        if not user.is_authenticated or not hasattr(user, 'member_profile'):
+            raise serializers.ValidationError("Bạn cần đăng nhập bằng tài khoản hội viên.")
+        member = user.member_profile
+        package = validated_data['training_package']
+        start_date = validated_data['start_date']
+        quantity = validated_data.get('quantity', package.session_count)
+
+        subscription = Subscription.objects.create(
+            member=member,
+            training_package=package,
+            start_date=start_date,
+            quantity=quantity,
+            status=SubscriptionStatus.PENDING
+        )
+
+        return subscription
 
 
 class WorkoutScheduleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutSchedule
-        fields = ['scheduled_at', 'duration']
+        fields = ['id', 'subscription', 'training_type', 'scheduled_at', 'duration']
+        read_only_fields = ['id']
 
-    def validate_scheduled_at(self, value):
-        if value < timezone.now():
-            raise serializers.ValidationError("Không thể đặt lịch trong quá khứ.")
-        return value
+    def validate_subscription(self, subscription):
+        request = self.context.get("request")
+        member = getattr(request.user, 'member_profile', None)
+        if not member:
+            raise serializers.ValidationError("Bạn không phải là hội viên.")
+
+        if subscription.member != member:
+            raise serializers.ValidationError("Gói tập không thuộc về bạn.")
+
+        if subscription.status != SubscriptionStatus.ACTIVE:
+            raise serializers.ValidationError("Gói tập không còn hiệu lực.")
+        return subscription
+
+    def validate(self, data):
+        subscription = data.get('subscription')
+        scheduled_at = data.get('scheduled_at')
+        duration = data.get('duration')
+
+        if scheduled_at and duration:
+            end_time = scheduled_at + timedelta(minutes=duration)
+
+            overlapping_schedules = WorkoutSchedule.objects.filter(
+                subscription__member=subscription.member
+            ).filter(
+                Q(scheduled_at__lt=end_time,
+                  scheduled_at__gte=scheduled_at) |
+                Q(scheduled_at__gte=scheduled_at,
+                  scheduled_at__lt=end_time) |
+                Q(scheduled_at__lte=scheduled_at, scheduled_at__gte=end_time)
+            )
+
+            if overlapping_schedules.exists():
+                raise serializers.ValidationError("Thời gian bạn chọn bị trùng với một buổi tập khác.")
+
+        return data
+
+    def create(self, validated_data):
+        validated_data['status'] = WorkoutScheduleStatus.SCHEDULED.value
+        return super().create(validated_data)
 
 
-class WorkoutScheduleChangeRequestSerializer(serializers.ModelSerializer):
-    trainer_name = serializers.CharField(source="trainer.user.username", read_only=True)
-    schedule_id = serializers.IntegerField(source="schedule.id", read_only=True)
+class WorkoutScheduleTrainerSerializer(serializers.ModelSerializer):
+    member_name = serializers.SerializerMethodField()
+    package_name = serializers.SerializerMethodField()
 
     class Meta:
+        model = WorkoutSchedule
+        fields = [
+            'id',
+            'training_type',
+            'scheduled_at',
+            'duration',
+            'status',
+            'member_name',
+            'package_name',
+        ]
+
+    def get_member_name(self, obj):
+        return obj.subscription.member.user.get_full_name()
+
+    def get_package_name(self, obj):
+        try:
+            return obj.subscription.training_package.name
+        except AttributeError:
+            return None
+
+
+class WorkoutScheduleWithTrainerSerializer(serializers.ModelSerializer):
+    trainer_name = serializers.CharField(source='subscription.training_package.pt.user.full_name', read_only=True)
+    training_package_name = serializers.CharField(source='subscription.training_package.name', read_only=True)
+
+    class Meta:
+        model = WorkoutSchedule
+        fields = ['id', 'subscription', 'training_type', 'scheduled_at', 'duration', 'trainer_name', 'training_package_name']
+        read_only_fields = ['id']
+
+
+#recheck
+class WorkoutScheduleChangeRequestSerializer(serializers.ModelSerializer):
+    class Meta:
         model = WorkoutScheduleChangeRequest
-        fields = ["id", "schedule_id", "trainer_name", "proposed_time", "reason", "status"]
+        fields = ['status']
 
 
+class WorkoutScheduleTrainerUpdateSerializer(serializers.Serializer):
+    proposed_time = serializers.DateTimeField()
+    reason = serializers.CharField(max_length=255)
+
+
+#XỬ LÝ THANH TOÁNs
+class PaymentCreateSerializer(serializers.ModelSerializer):
+    subscription_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Payment
+        fields = ['id', 'subscription_id', 'amount', 'payment_method']
+        read_only_fields = ['id', 'amount', 'payment_method']
+
+    def validate(self, data):
+        # Kiểm tra subscription hợp lệ
+        subscription = Subscription.objects.filter(
+            id=data['subscription_id'],
+            status=SubscriptionStatus.PENDING
+        ).first()
+
+        if not subscription:
+            raise serializers.ValidationError("Subscription không hợp lệ")
+
+        data['amount'] = subscription.total_cost
+        return data
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    subscription_info = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = ['id', 'amount', 'payment_method', 'payment_status', 'subscription_info']
+
+    def get_subscription_info(self, obj):
+        return {
+            'package_name': obj.subscription.training_package.name,
+            'duration': f"{obj.subscription.quantity} tháng"
+        }
+
+
+#VNPAY
+class VNPayCreateSerializer(serializers.Serializer):
+    subscription_id = serializers.IntegerField()
+    bank_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def validate_subscription_id(self, value):
+        if not Subscription.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Subscription không tồn tại.")
+        return value
+
+class PaymentForm(forms.Form):
+    order_id = forms.CharField(max_length=250)
+    order_type = forms.CharField(max_length=20)
+    amount = forms.IntegerField()
+    order_desc = forms.CharField(max_length=100)
+    bank_code = forms.CharField(max_length=20, required=False)
+    language = forms.CharField(max_length=2)
+
+class PaymentRequestSerializer(serializers.Serializer):
+    subscription_id = serializers.IntegerField()
+    bank_code = serializers.CharField(required=False, max_length=20)
+    language = serializers.CharField(default='vn', max_length=2)
+
+class PaymentResponseSerializer(serializers.Serializer):
+    vnp_TransactionNo = serializers.CharField()
+    vnp_Amount = serializers.IntegerField()
+    vnp_OrderInfo = serializers.CharField()
+    vnp_ResponseCode = serializers.CharField()
+    vnp_TransactionStatus = serializers.CharField()
