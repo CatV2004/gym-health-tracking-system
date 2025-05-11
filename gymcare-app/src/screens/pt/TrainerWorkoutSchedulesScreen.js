@@ -21,12 +21,12 @@ import {
 } from "../../api/schedule/workoutScheduleService";
 import { getSubscriptionsDetail } from "../../api/subscriptionApi";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import moment from "moment";
 import "moment/locale/vi";
 import PTNavHeader from "../../components/pt/PTNavHeader";
 import styles from "./TrainerWorkoutSchedulesScreen.styles";
-
 
 const STATUS_MAP = {
   0: { text: "Đã lên lịch", color: "#4a90e2" },
@@ -53,8 +53,10 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
   const [reason, setReason] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const token = useSelector((state) => state.auth.accessToken);
+  console.log("token:", token)
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [scheduleToApprove, setScheduleToApprove] = useState(null);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
   const handleApproveSchedule = (schedule) => {
     setScheduleToApprove(schedule);
@@ -111,14 +113,6 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchSchedules();
-  }, []);
-
-  const onRefresh = () => {
-    fetchSchedules();
-  };
-
   const handleRequestChange = (schedule) => {
     setSelectedSchedule(schedule);
     setProposedTime(new Date(schedule.scheduled_at));
@@ -126,11 +120,25 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
     setShowChangeModal(true);
   };
 
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (event.type !== 'dismissed' && selectedDate) {
-      setProposedTime(selectedDate);
+  const handleConfirmDate = (selectedDate) => {
+    setDatePickerVisibility(false);
+    if (!selectedDate || selectedDate < new Date()) {
+      Alert.alert("Lỗi", "Vui lòng chọn thời gian hợp lệ trong tương lai");
+      return;
     }
+    setProposedTime(selectedDate);
+  };
+
+  const handleCancelDate = () => {
+    setDatePickerVisibility(false);
+  };
+
+  useEffect(() => {
+    fetchSchedules();
+  }, []);
+
+  const onRefresh = () => {
+    fetchSchedules();
   };
 
   const submitChangeRequest = async () => {
@@ -146,9 +154,7 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
         reason: reason.trim(),
       };
 
-      console.log("================: ", requestData.proposed_time)
-
-      await createChangeRequest(token, requestData);
+      await createChangeRequest(requestData, token);
 
       Alert.alert("Thành công", "Yêu cầu thay đổi lịch đã được gửi");
       setShowChangeModal(false);
@@ -157,6 +163,14 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
       Alert.alert("Lỗi", error.message || "Gửi yêu cầu thất bại");
     }
   };
+
+  useEffect(() => {
+    if (!showChangeModal) {
+      setSelectedSchedule(null);
+      setReason("");
+      setProposedTime(new Date());
+    }
+  }, [showChangeModal]);
 
   const renderScheduleItem = (schedule) => {
     const formattedDate = moment(schedule.scheduled_at).format("LLL");
@@ -300,16 +314,16 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
             <Text style={styles.confirmModalText}>
               Bạn có chắc chắn muốn duyệt lịch tập này?
             </Text>
-            
+
             <View style={styles.confirmModalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.confirmModalButton, styles.cancelButton]}
                 onPress={() => setShowApproveConfirm(false)}
               >
                 <Text style={styles.confirmModalButtonText}>Huỷ</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.confirmModalButton, styles.submitButton]}
                 onPress={confirmApproveSchedule}
               >
@@ -343,22 +357,21 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
               <Text style={styles.modalLabel}>Thời gian đề xuất:</Text>
               <TouchableOpacity
                 style={styles.datePickerButton}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => setDatePickerVisibility(true)}
               >
                 <Text style={styles.datePickerText}>
                   {moment(proposedTime).format("LLL")}
                 </Text>
                 <Icon name="edit" size={18} color="#4a90e2" />
               </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={proposedTime}
-                  mode="datetime"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleDateChange}
-                  onCancel={() => setShowDatePicker(false)}
-                />
-              )}
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="datetime"
+                onConfirm={handleConfirmDate}
+                onCancel={handleCancelDate}
+                minimumDate={new Date()}
+                date={proposedTime}
+              />
             </View>
 
             <View style={styles.modalSection}>
