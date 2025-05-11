@@ -3,17 +3,21 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 
-import HomeScreen from "../screens/home/HomeScreen";
+import HomeScreen from "../screens/member/home/HomeScreen";
 import LoginScreen from "../screens/Auth/LoginScreen";
-import AccountScreen from "../screens/Account/AccountScreen";
+import AccountScreen from "../screens/member/Account/AccountScreen";
 import ChatScreen from "../screens/chat/ChatScreen";
 import ChatStackNavigator from "./ChatStackNavigator";
 import UserListScreen from "../screens/chat/UserListScreen";
+import PTDashboardScreen from "../screens/pt/PTDashboardScreen";
+import SubscriptionStack from "./SubscriptionStack";
+import MemberScheduleScreen from "../screens/member/subscription/schedule/MemberScheduleScreen";
 
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator({ navigation }) {
-  const { accessToken } = useSelector((state) => state.auth);
+  const { accessToken, user } = useSelector((state) => state.auth);
+  console.log("role: ", user?.role);
 
   return (
     <Tab.Navigator
@@ -35,13 +39,40 @@ export default function BottomTabNavigator({ navigation }) {
             iconName = focused ? "person" : "person-outline";
           else if (route.name === "Chat")
             iconName = focused ? "chatbubble" : "chatbubble-outline";
+          else if (route.name === "MySubscriptions")
+            iconName = focused ? "barbell" : "barbell-outline";
+          else if (route.name === "Schedule")
+            iconName = focused ? "calendar" : "calendar-outline";
           return <Ionicons name={iconName} size={24} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Home"
+        component={
+          accessToken
+            ? user?.role === 1
+              ? PTDashboardScreen // màn hình dashboard PT
+              : HomeScreen // màn hình thành viên (member)
+            : HomeScreen // chưa đăng nhập, vẫn là Home mặc định
+        }
+      />
       {accessToken ? (
         <>
+          {user?.role === 2 && (
+            <>
+              <Tab.Screen
+                name="MySubscriptions"
+                component={SubscriptionStack}
+                options={{ title: "Gói tập" }}
+              />
+              <Tab.Screen
+                name="Schedule"
+                component={MemberScheduleScreen}
+                options={{ title: "Lịch tập" }}
+              />
+            </>
+          )}
           <Tab.Screen name="Chat" component={UserListScreen} />
           <Tab.Screen name="Account" component={AccountScreen} />
         </>

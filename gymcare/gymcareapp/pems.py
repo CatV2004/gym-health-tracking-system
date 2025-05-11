@@ -37,6 +37,14 @@ class AdminPermission(permissions.BasePermission):
         return request.user.role == 0
 
 
+
+
+class IsReviewOwner(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        member = getattr(request.user, 'member_profile', None)
+        return hasattr(obj, 'reviewer') and obj.reviewer == member
+
+
 class MemberPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and hasattr(request.user, 'member_profile')
@@ -54,6 +62,7 @@ class MemberPermission(permissions.BasePermission):
 
         if hasattr(obj, 'schedule') and hasattr(obj.schedule, 'subscription'):
             return obj.schedule.subscription.member == member
+
 
         return False
 
@@ -105,3 +114,39 @@ class ReviewPermission(permissions.BasePermission):
 class ChatPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role in [0, 1, 2]
+
+
+
+
+
+
+
+
+class IsTrainer(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and hasattr(request.user, 'trainer_profile')
+
+class IsOwnerOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_staff:
+            return True
+        return hasattr(request.user, 'trainer_profile') and obj.trainer == request.user.trainer_profile
+
+
+class IsMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and hasattr(request.user, 'member_profile')
+
+class IsMemberOwner(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_staff:
+            return True
+        return hasattr(request.user, 'member_profile') and obj.schedule.subscription.member == request.user.member_profile
+
+class IsMemberOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_staff:
+            return True
+        return hasattr(request.user, 'member_profile') and obj.schedule.subscription.member == request.user.member_profile
+
+

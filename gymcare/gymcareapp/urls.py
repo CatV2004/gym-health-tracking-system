@@ -14,6 +14,9 @@ router.register('member-subscriptions', views.MemberSubscriptionViewSet, basenam
 router.register('subscriptions', views.SubscriptionViewSet, basename='subscription')
 router.register('workout-schedules', views.WorkoutScheduleViewSet, basename='workout-schedule')
 router.register('payment', views.PaymentViewSet, basename='payment')
+router.register(r'reviews', views.ReviewViewSet, basename='review')
+router.register(r'change-requests', views.WorkoutScheduleChangeRequestViewSet, basename='change-request')
+
 
 
 urlpatterns = [
@@ -22,5 +25,8 @@ urlpatterns = [
     path('api/payments/payment_return/', views.PaymentReturnView.as_view(), name='payment_return'),
     path('api/payments/ipn/', views.PaymentIPNView.as_view(), name='payment_ipn'),
     path('api/payments/update_status/', views.UpdatePaymentStatusView.as_view(), name='update_payment_status'),
+
+    path("pt-dashboard/", views.PTDashboardView.as_view(), name="pt-dashboard"),
+
     path('', include(router.urls)),
 ]
