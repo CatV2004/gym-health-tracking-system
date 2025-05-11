@@ -197,7 +197,7 @@ class Subscription(BaseModel):
     start_date = models.DateField(null=True, default=timezone.now)
     end_date = models.DateField(null=True, blank=True)  # Sẽ được tính tự động nếu không được cung cấp
     status = models.IntegerField(choices=SubscriptionStatus.choices, default=SubscriptionStatus.PENDING)
-    total_cost = models.DecimalField(null=True, max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)
     quantity = models.IntegerField(default=1)
     def clean(self):
         if self.start_date and self.end_date and self.start_date >= self.end_date:
@@ -218,12 +218,12 @@ class Subscription(BaseModel):
             self.total_cost = self.training_package.cost * self.quantity
 
         super().save(*args, **kwargs)
-
     # def __str__(self):
     #     return f"Subscription of {self.member.user.username} for {self.training_package.name}"
     def mark_as_active(self):
         self.status = SubscriptionStatus.ACTIVE
         self.save()
+
 
 class PaymentStatus(IntEnum):
     PENDING = 0
@@ -297,6 +297,11 @@ class WorkoutSchedule(BaseModel):
     scheduled_at = models.DateTimeField(null=True)
     duration = models.IntegerField(null=True)
     status = models.IntegerField(choices=WorkoutScheduleStatus.choices(), default=WorkoutScheduleStatus.SCHEDULED.value)
+
+    def save(self, *args, **kwargs):
+        if self.scheduled_at:
+            self.scheduled_at = self.scheduled_at.replace(microsecond=0)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Workout session for {self.subscription.member.user.username} on {self.scheduled_at}"

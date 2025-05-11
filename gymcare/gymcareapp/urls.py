@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 
+
 router = DefaultRouter()
 router.register('user', views.UserViewSet, basename='user')
 router.register('trainer', views.TrainerViewSet, basename='trainer')
@@ -13,6 +14,7 @@ router.register('member-subscriptions', views.MemberSubscriptionViewSet, basenam
 router.register('subscriptions', views.SubscriptionViewSet, basename='subscription')
 router.register('workout-schedules', views.WorkoutScheduleViewSet, basename='workout-schedule')
 router.register('payment', views.PaymentViewSet, basename='payment')
+
 
 urlpatterns = [
     path('payment/<int:pk>/zalopay-order/', views.ZaloPayOrderView.as_view(), name='zalopay-order'),

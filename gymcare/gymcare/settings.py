@@ -25,6 +25,7 @@ SECRET_KEY = 'django-insecure-ets94dt(=!_1jga!$5!pn39_mo0d-c%m=l=#*uoncpq@*a3w2l
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+
 CORS_ALLOWED_ORIGINS = [
     "http://192.168.253.1:3000",
     "https://8949-125-235-239-76.ngrok-free.app",
@@ -199,7 +200,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Asia/Ho_Chi_Minh'
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
