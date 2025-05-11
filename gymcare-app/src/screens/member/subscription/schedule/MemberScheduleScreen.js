@@ -45,7 +45,7 @@ const MemberScheduleScreen = ({ navigation }) => {
     2: { label: "Đã huỷ", color: colors.red },
     3: { label: "Chờ xử lý", color: colors.purple },
     4: { label: "Đã thay đổi", color: colors.teal },
-    5: { label: "Đã xác nhận", color: colors.darkGreen }
+    5: { label: "Đã xác nhận", color: colors.darkGreen },
   };
   const REQUEST_STATUS = {
     0: { label: "Chờ phản hồi", color: colors.orange, icon: "schedule" },
@@ -98,7 +98,7 @@ const MemberScheduleScreen = ({ navigation }) => {
   useEffect(() => {
     fetchData();
   }, []);
-  console.log("subscriptopn: ", subscriptions);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
@@ -111,10 +111,12 @@ const MemberScheduleScreen = ({ navigation }) => {
   };
 
   const handleRespondToRequest = async (requestId, response) => {
+    console.log("response: ", response)
     try {
       setProcessingRequest(requestId);
       const rs = await respondToChangeRequest(requestId, response, token);
-      if (rs.status === 201) {
+      console.log("rs: ", rs.status)
+      if (rs.status === 200) {
         Alert.alert(
           "Thành công",
           response === "ACCEPT" ? "Đã chấp nhận" : "Đã từ chối",
@@ -129,36 +131,53 @@ const MemberScheduleScreen = ({ navigation }) => {
   };
 
   const renderRequestActions = (request) => {
+
     if (request.status === 0) {
       return (
         <View style={styles.requestActionsContainer}>
+          {/* Nút Chấp nhận */}
           <TouchableOpacity
-            style={[styles.responseButton, styles.acceptButton]}
+            style={[
+              styles.responseButton,
+              styles.acceptButton,
+              { backgroundColor: "green", borderRadius: 8 }, // Màu nền xanh cho "Chấp nhận"
+            ]}
             onPress={() => handleRespondToRequest(request.id, "ACCEPT")}
             disabled={processingRequest === request.id}
           >
             {processingRequest === request.id ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Icon name="check" size={16} color="white" />
-                <Text style={styles.responseButtonText}> Chấp nhận</Text>
-              </>
+                <Text style={[styles.responseButtonText, { color: "white" }]}>
+                  {" "}
+                  Chấp nhận
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
 
+          {/* Nút Từ chối */}
           <TouchableOpacity
-            style={[styles.responseButton, styles.rejectButton]}
+            style={[
+              styles.responseButton,
+              styles.rejectButton,
+              { backgroundColor: "red", borderRadius: 8 }, // Màu nền đỏ cho "Từ chối"
+            ]}
             onPress={() => handleRespondToRequest(request.id, "REJECT")}
             disabled={processingRequest === request.id}
           >
             {processingRequest === request.id ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Icon name="close" size={16} color="white" />
-                <Text style={styles.responseButtonText}> Từ chối</Text>
-              </>
+                <Text style={[styles.responseButtonText, { color: "white" }]}>
+                  {" "}
+                  Từ chối
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>

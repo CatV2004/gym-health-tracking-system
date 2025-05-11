@@ -21,6 +21,7 @@ const SessionItem = ({
   const status = STATUS[session.status];
   const requests = changeRequests[session.id] || [];
 
+  console.log("session: ", session)
   const isActionable = session.status === 0 || session.status === 1;
   return (
     <View style={styles.sessionCard}>

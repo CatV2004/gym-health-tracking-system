@@ -1,4 +1,4 @@
-export const API_BASE = "http://192.168.1.20:8000";
+export const API_BASE = "http://192.168.1.5:8000";
 
 export const CLIENT_ID = "vPKe8Hr5r5nXV0cw7FdmUBiRdoC4EXB449hyXvow";
 
