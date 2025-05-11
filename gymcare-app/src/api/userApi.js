@@ -33,23 +33,23 @@ export const updatePassword = async (currentPassword, newPassword, token) => {
   }
 };
 
-export const updateAvatar = async (imageUrl, token) => {
+export const updateAvatar = async (fileData, token) => {
   try {
     const response = await axios.patch(
       `${API_BASE}/user/update/`,
-      { image: imageUrl },
+      fileData,
       {
         headers: {
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
         },
       }
     );
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Cập nhật avatar thất bại." };
+    throw error.response?.data || { message: "Cập nhật avatar thất bại" };
   }
 };
-
 
 export const getAllUsers = async (token) => {
   try {
