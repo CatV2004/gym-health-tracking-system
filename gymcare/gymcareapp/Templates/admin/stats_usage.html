@@ -1,114 +1,110 @@
-<!--{% extends 'admin/base_site.html' %}-->
+{% extends "admin/base_site.html" %}
+{% load static %}
 
-<!--{% block content %}  &lt;!&ndash; Mở block content &ndash;&gt;-->
+{% block extrahead %}
+<!-- Thêm Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% endblock %}
 
-<!--<h1 class="text-center text-info">BÁO CÁO MẬT ĐỘ SỬ DỤNG PHÒNG</h1>-->
-<!--<br>-->
-<!--<form>-->
-<!--    <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 auto; margin-bottom: 1rem;"-->
-<!--         class="col-md-10 col-xs-12 form-group">-->
-<!--        <input style="display: inline-block;" type="number" min="1" max="12" class="form-control"-->
-<!--               name="month" value="{{ month }}"-->
-<!--               placeholder="NHẬP THÁNG {{ month }}">-->
-<!--        <input style="display: inline-block; margin-left: 15px;" type="number" min="2000" class="form-control"-->
-<!--               name="year" value="{{ year }}"-->
-<!--               placeholder="NHẬP NĂM {{ year }}">-->
-<!--        <input style="margin-left: 15px; display: inline-block;" type="submit" value="Submit MONTH"-->
-<!--               class="btn btn-info">-->
-<!--    </div>-->
-<!--</form>-->
-<!--<div style="justify-content: center;" class="row">-->
-<!--    <div class="col-md-8 col-xs-12">-->
-<!--        <table class="table text-center">-->
-<!--            <tr>-->
-<!--                <th>STT</th>-->
-<!--                <th>Phòng</th>-->
-<!--                <th>Số buổi tập</th>-->
-<!--                <th>Tỷ Lệ (%)</th>-->
-<!--            </tr>-->
-<!--            {% for r in room_utilization_report %}-->
-<!--            <tr>-->
-<!--                <td>{{ loop.index }}</td>-->
-<!--                <td>{{ r.name }}</td>-->
-<!--                <td>{{ r.total_sessions }}</td>-->
-<!--                <td>{{ r.usage_percentage }}</td>-->
-<!--            </tr>-->
-<!--            {% endfor %}-->
-<!--            <form>-->
-<!--                <select id="viewType" style="display: inline-block; margin-left: 15px;" class="form-control">-->
-<!--                    <option value="bar">Loại biểu đồ</option>-->
-<!--                    <option value="bar">Biểu đồ cột</option>-->
-<!--                    <option value="pie">Biểu đồ tròn</option>-->
-<!--                    <option value="line">Biểu đồ đường</option>-->
-<!--                </select>-->
-<!--                <canvas id="myChart"></canvas>-->
-<!--            </form>-->
-<!--        </table>-->
-<!--    </div>-->
-<!--</div>-->
+{% block content %}
+<div class="container my-4">
+  <h1 class="mb-4 text-primary">📊 Thống kê sử dụng phòng tập</h1>
 
-<!--<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>-->
-<!--<script>-->
-<!--    window.onload = function () {-->
-<!--        const ctx = document.getElementById('myChart').getContext('2d');-->
-<!--        const viewTypeDropdown = document.getElementById('viewType');-->
+  <!-- Form chọn ngày -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+      <label for="date" class="col-form-label">Chọn ngày:</label>
+    </div>
+    <div class="col-auto">
+      <input type="date" id="date" name="date" value="{{ current_date_input }}" class="form-control">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-success">Xem</button>
+    </div>
+  </form>
 
-<!--        let myChart = null;-->
+  <h4 class="text-muted">Ngày: <strong>{{ current_date }}</strong></h4>
 
-<!--        const drawChart = () => {-->
-<!--            const viewType = viewTypeDropdown.value || 'bar'; // Mặc định là 'bar'-->
+  <!-- Bảng thống kê -->
+  <div class="table-responsive my-4">
+    <table class="table table-bordered table-hover align-middle text-center">
+      <thead class="table-light">
+        <tr>
+          <th>Khung giờ</th>
+          <th>Số lượt đặt</th>
+          <th>Hoàn thành</th>
+          <th>Các loại hình tập luyện</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in hourly_stats %}
+        <tr>
+          <td><strong>{{ stat.time_slot }}</strong></td>
+          <td>{{ stat.total }}</td>
+          <td>{{ stat.completed }}</td>
+          <td class="text-start">
+            <ul class="mb-0">
+              {% for type, count in stat.types.items %}
+              <li><strong>{{ type }}</strong>: {{ count }}</li>
+              {% endfor %}
+            </ul>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-<!--            if (!['pie', 'bar', 'line'].includes(viewType)) {-->
-<!--                console.error(`"${viewType}" is not a valid chart type.`);-->
-<!--                return;-->
-<!--            }-->
+  <!-- Giờ cao điểm -->
+  <h5 class="text-info">⏰ Giờ cao điểm (nhiều buổi tập nhất):</h5>
+  <ul>
+    {% for hour in peak_hours %}
+    <li><span class="badge bg-warning text-dark">{{ hour }}</span></li>
+    {% endfor %}
+  </ul>
 
-<!--            let data = [];-->
-<!--            let labels = [];-->
-<!--            let colors = [];-->
-<!--            let borderColors = [];-->
-<!--            let r, g, b;-->
+  <!-- Biểu đồ -->
+  <div class="my-5">
+    <canvas id="usageChart" width="400" height="200"></canvas>
+  </div>
+</div>
 
-<!--            {% for m in room_utilization_report %}-->
-<!--            labels.push('{{ m.name }}');  // Tên phòng-->
-<!--            data.push({{ m.usage_percentage }});      // Tỷ lệ sử dụng phòng-->
-<!--            r = parseInt(Math.random() * 255);-->
-<!--            g = parseInt(Math.random() * 255);-->
-<!--            b = parseInt(Math.random() * 255);-->
-<!--            colors.push(`rgba(${r}, ${g}, ${b}, 0.2)`); // Màu nền-->
-<!--            borderColors.push(`rgba(${r}, ${g}, ${b}, 1)`); // Màu viền-->
-<!--            {% endfor %}-->
-
-<!--            if (myChart) {-->
-<!--                myChart.destroy();-->
-<!--            }-->
-
-<!--            myChart = new Chart(ctx, {-->
-<!--                type: viewType,-->
-<!--                data: {-->
-<!--                    labels: labels,-->
-<!--                    datasets: [{-->
-<!--                        label: 'Tỷ lệ sử dụng phòng (%)',-->
-<!--                        data: data,-->
-<!--                        backgroundColor: colors,-->
-<!--                        borderColor: borderColors,-->
-<!--                        borderWidth: 1-->
-<!--                    }]-->
-<!--                },-->
-<!--                options: {-->
-<!--                    scales: viewType === 'bar' ? {-->
-<!--                        y: {-->
-<!--                            beginAtZero: true-->
-<!--                        }-->
-<!--                    } : {}-->
-<!--                }-->
-<!--            });-->
-<!--        };-->
-
-<!--        drawChart();-->
-
-<!--        viewTypeDropdown.addEventListener('change', drawChart);-->
-<!--    }-->
-<!--</script>-->
-
-<!--{% endblock %}  &lt;!&ndash; Đảm bảo đóng block content đúng cách &ndash;&gt;-->
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('usageChart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ time_labels|safe }},
+      datasets: [{
+        label: 'Số lượt đặt',
+        data: {{ booked_counts|safe }},
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Biểu đồ lượt đặt theo khung giờ'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: {{ capacity }},
+          title: {
+            display: true,
+            text: 'Số lượt'
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

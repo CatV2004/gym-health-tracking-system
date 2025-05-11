@@ -250,12 +250,28 @@ class MemberSubscriptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'member', 'training_package', 'active']
 
 
+# class WorkoutScheduleSerializer(serializers.ModelSerializer):
+#     member_name = serializers.CharField(source="subscription.member.user.username", read_only=True)
+#
+#     class Meta:
+#         model = WorkoutSchedule
+#         fields = ["id", "member_name", "subscription" ,"training_type", "scheduled_at", "duration", "status"]
+#         read_only_fields = ["id", "member_name", "subscription", "status"]
+
 class WorkoutScheduleSerializer(serializers.ModelSerializer):
-    member_name = serializers.CharField(source="subscription.member.user.username", read_only=True)
+    subscription = serializers.PrimaryKeyRelatedField(queryset=Subscription.objects.all())
+    training_type = serializers.ChoiceField(choices=TrainingType.choices())
+    scheduled_at = serializers.DateTimeField()
+    duration = serializers.IntegerField(min_value=1)
 
     class Meta:
         model = WorkoutSchedule
-        fields = ["id", "member_name", "training_type", "scheduled_at", "duration", "status"]
+        fields = ["id",'subscription', 'training_type', 'scheduled_at', 'duration', 'status']
+        read_only_fields = ["id", "status"]
+
+    def create(self, validated_data):
+        validated_data['status'] = WorkoutScheduleStatus.SCHEDULED.value
+        return super().create(validated_data)
 
 
 class WorkoutScheduleCreateSerializer(serializers.ModelSerializer):
@@ -277,4 +293,20 @@ class WorkoutScheduleChangeRequestSerializer(serializers.ModelSerializer):
         model = WorkoutScheduleChangeRequest
         fields = ["id", "schedule_id", "trainer_name", "proposed_time", "reason", "status"]
 
+    def validate_schedule(self, schedule):
+        if schedule.status != WorkoutScheduleStatus.PENDING:
+            raise serializers.ValidationError("Chỉ có thể yêu cầu thay đổi lịch đang chờ.")
+        return schedule
+
+    def create(self, validated_data):
+        request = self.context['request']
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            raise serializers.ValidationError("Bạn không có quyền tạo yêu cầu này.")
+
+        # Tạo yêu cầu thay đổi lịch tập
+        return WorkoutScheduleChangeRequest.objects.create(
+            trainer=trainer,
+            **validated_data
+        )
 

@@ -1,110 +1,133 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+<!-- Thêm Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<h1 class="admin-header">Thống Kê Số Lượng Hội Viên</h1>
-<p class="total-members">Tổng số hội viên: <strong>{{ total_member_count }}</strong></p>
+<div class="container my-4">
+  <h1 class="mb-4 text-primary">📊 Thống Kê Số Lượng Hội Viên</h1>
 
-{% if monthly_member_counts|length == 0 %}
-    <p>Chưa có hội viên nào tham gia trong năm nay.</p>
-{% else %}
-    <!-- Biểu đồ thống kê số lượng hội viên -->
-    <div class="chart-container">
-        <canvas id="memberChart" width="400" height="200"></canvas>
+  <!-- Form chọn tháng và năm -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+      <label for="year" class="col-form-label">Chọn năm:</label>
     </div>
-{% endif %}
+    <div class="col-auto">
+      <input type="number" style="background-color: white; color: black;" id="year" name="year" value="{{ year }}" min="2000" class="form-control" placeholder="Nhập năm">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-info">Xem thống kê</button>
+    </div>
+  </form>
 
+  <!-- Hiển thị tổng số thành viên -->
+  <div class="mb-4">
+    <p><strong>Tổng số thành viên:</strong> {{ total_member_count }}</p>
+    <p><strong>Số lượng thành viên nam:</strong> {{ total_male_count }}</p>
+    <p><strong>Số lượng thành viên nữ:</strong> {{ total_female_count }}</p>
+  </div>
+
+  <!-- Biểu đồ số lượng thành viên theo tháng -->
+  <h3 class="text-primary">Số Lượng Thành Viên Theo Tháng</h3>
+  <div class="my-4">
+    <canvas id="memberChart" width="400" height="200"></canvas>
+  </div>
+
+  <!-- Biểu đồ số lượng thành viên theo giới tính -->
+  <h3 class="text-primary">Số Lượng Thành Viên Theo Giới Tính và Tháng</h3>
+  <div class="my-4">
+    <canvas id="genderChart" width="400" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    window.onload = function() {
-        var ctx = document.getElementById('memberChart').getContext('2d');
+  window.onload = function () {
+    // Khởi tạo các mảng rỗng
+    var memberData = [];
+    var maleData = [];
+    var femaleData = [];
+    var months = [];
 
-        var monthlyMemberCounts = {{ monthly_member_counts|safe }};
-        var months = {{ months|safe }};
+    // Dùng `push` để thêm từng giá trị vào mảng
+    {% for count in monthly_member_counts %}
+      memberData.push({{ count }});
+    {% endfor %}
 
-        var backgroundColors = [];
+    {% for count in male_member_counts %}
+      maleData.push({{ count }});
+    {% endfor %}
 
-        for (var i = 0; i < monthlyMemberCounts.length; i++) {
-            backgroundColors.push('rgb(' + Math.floor(Math.random() * 256) + ',' + Math.floor(Math.random() * 256) + ',' + Math.floor(Math.random() * 256) + ')');
+    {% for count in female_member_counts %}
+      femaleData.push({{ count }});
+    {% endfor %}
+
+    {% for month in months %}
+      months.push("{{ month }}");
+    {% endfor %}
+
+    // Tạo biểu đồ cho tổng số thành viên
+    const ctx = document.getElementById('memberChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Số lượng thành viên',
+          data: memberData,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
         }
+      }
+    });
 
-        if (monthlyMemberCounts.length > 0) {
-            var memberChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: months,
-                    datasets: [{
-                        label: 'Số lượng hội viên',
-                        data: monthlyMemberCounts,
-                        backgroundColor: backgroundColors,
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
+    // Tạo biểu đồ cho số lượng thành viên theo giới tính
+    const genderCtx = document.getElementById('genderChart').getContext('2d');
+    new Chart(genderCtx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: 'Số lượng thành viên nam',
+            data: maleData,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          },
+          {
+            label: 'Số lượng thành viên nữ',
+            data: femaleData,
+            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
         }
-    }
+      }
+    });
+  };
 </script>
-
-{% block extrahead %}
-    <style>
-        /* CSS cho trang thống kê */
-        .admin-header {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        .total-members {
-            font-size: 1.2rem;
-            color: #555;
-            margin-bottom: 30px;
-        }
-
-        .total-members strong {
-            font-size: 1.4rem;
-            color: #007bff;
-        }
-
-        .chart-container {
-            max-width: 90%;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        canvas {
-            border-radius: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .admin-header {
-                font-size: 1.5rem;
-            }
-
-            .total-members {
-                font-size: 1rem;
-            }
-
-            .chart-container {
-                max-width: 100%;
-            }
-        }
-    </style>
-{% endblock %}
 
 {% endblock %}

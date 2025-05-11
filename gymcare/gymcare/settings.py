@@ -25,6 +25,8 @@ SECRET_KEY = 'django-insecure-ets94dt(=!_1jga!$5!pn39_mo0d-c%m=l=#*uoncpq@*a3w2l
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1','192.168.253.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','192.168.1.59']
+
 CORS_ALLOWED_ORIGINS = [
     "http://192.168.253.1:3000",
 ]
@@ -180,7 +182,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Asia/Ho_Chi_Minh'
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
