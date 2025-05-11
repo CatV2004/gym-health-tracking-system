@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from rest_framework import viewsets, status, generics, permissions, mixins
 from django.http import JsonResponse
 from rest_framework.decorators import action
@@ -409,3 +411,193 @@ class TrainerScheduleChangeRequestViewSet(viewsets.ViewSet):
             return Response({"message": "Yêu cầu thay đổi đã bị từ chối."}, status=status.HTTP_200_OK)
 
 
+class WorkoutScheduleViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'], url_path='upload-schedule')
+    def member_uploads_training_workout_schedule(self, request, *args, **kwargs):
+        member = request.user.member_profile
+        subscription = member.subscriptions.filter(status=1).first()
+
+        if not subscription:
+            return Response({"detail": "Bạn không có gói tập đang hoạt động."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = WorkoutScheduleCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            scheduled_at = serializer.validated_data.get('scheduled_at')
+
+            if scheduled_at < timezone.now():
+                return Response({"detail": "Không thể đặt lịch tập trong quá khứ."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if scheduled_at - timezone.now() > timedelta(days=1):
+                return Response({"detail": "Bạn chỉ có thể lên lịch tập trong vòng 24h."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            workout_schedule = WorkoutSchedule.objects.create(
+                subscription=subscription,
+                scheduled_at=scheduled_at,
+                duration=serializer.validated_data.get('duration'),
+                training_type=0,
+                status=WorkoutScheduleStatus.SCHEDULED.value
+            )
+
+            return Response(WorkoutScheduleSerializer(workout_schedule).data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'], url_path='update-schedule')
+    def member_update_training_workout_schedule(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.subscription.member.user != request.user:
+                return Response({"detail": "Bạn chỉ có thể cập nhật lịch tập của mình."},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if workout_schedule.scheduled_at - timezone.now() < timedelta(hours=24):
+                return Response({"detail": "Bạn chỉ có thể cập nhật lịch tập trước 24h."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = WorkoutScheduleCreateSerializer(workout_schedule, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='accept-schedule')
+    def trainer_accepts_training_workout_schedule(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.status != WorkoutScheduleStatus.SCHEDULED.value:
+                return Response({"detail": "Lịch tập không còn ở trạng thái chờ xác nhận."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            workout_schedule.status = WorkoutScheduleStatus.COMPLETED.value
+            workout_schedule.save()
+
+            return Response(WorkoutScheduleSerializer(workout_schedule).data, status=status.HTTP_200_OK)
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='request-change')
+    def trainer_requests_change_training_workout_schedule(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.status != WorkoutScheduleStatus.SCHEDULED.value:
+                return Response({"detail": "Chỉ có thể yêu cầu thay đổi lịch đang được lên lịch."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = WorkoutScheduleChangeRequestSerializer(data=request.data)
+            if serializer.is_valid():
+                change_request = serializer.save(
+                    schedule=workout_schedule,
+                    trainer=request.user.trainer_profile
+                )
+
+                workout_schedule.status = WorkoutScheduleStatus.PENDING_CHANGE.value
+                workout_schedule.save()
+
+                return Response(WorkoutScheduleChangeRequestSerializer(change_request).data,
+                                status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='accept-change')
+    def member_accepts_schedule_change_request(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.subscription.member.user != request.user:
+                return Response({"detail": "Bạn không có quyền với lịch tập này."},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if workout_schedule.status != WorkoutScheduleStatus.PENDING_CHANGE.value:
+                return Response({"detail": "Không có yêu cầu thay đổi nào đang chờ xử lý."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            change_request = workout_schedule.change_requests.last()
+            if not change_request:
+                return Response({"detail": "Không tìm thấy yêu cầu thay đổi."}, status=status.HTTP_404_NOT_FOUND)
+
+            workout_schedule.scheduled_at = change_request.proposed_time
+            workout_schedule.status = WorkoutScheduleStatus.CHANGED.value
+            workout_schedule.save()
+
+            change_request.status = 'accepted'
+            change_request.save()
+
+            return Response({"detail": "Yêu cầu thay đổi đã được chấp nhận.",
+                             "schedule": WorkoutScheduleSerializer(workout_schedule).data})
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='reject-change')
+    def member_rejects_schedule_change_request(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.subscription.member.user != request.user:
+                return Response({"detail": "Bạn không có quyền với lịch tập này."},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if workout_schedule.status != WorkoutScheduleStatus.PENDING_CHANGE.value:
+                return Response({"detail": "Không có yêu cầu thay đổi nào đang chờ xử lý."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            change_request = workout_schedule.change_requests.last()
+            if not change_request:
+                return Response({"detail": "Không tìm thấy yêu cầu thay đổi."}, status=status.HTTP_404_NOT_FOUND)
+
+            change_request.status = 'rejected'
+            change_request.save()
+
+            workout_schedule.status = WorkoutScheduleStatus.SCHEDULED.value
+            workout_schedule.save()
+
+            return Response({"detail": "Bạn đã từ chối yêu cầu thay đổi."})
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='cancel-schedule')
+    def member_cancels_schedule(self, request, *args, **kwargs):
+        workout_schedule_id = kwargs.get('pk')
+        try:
+            workout_schedule = WorkoutSchedule.objects.get(id=workout_schedule_id)
+
+            if workout_schedule.subscription.member.user != request.user:
+                return Response({"detail": "Bạn không có quyền với lịch tập này."},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if workout_schedule.status in [WorkoutScheduleStatus.CANCELLED.value,
+                                           WorkoutScheduleStatus.COMPLETED.value]:
+                return Response({"detail": "Lịch tập đã hoàn tất hoặc bị hủy."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            if workout_schedule.scheduled_at - timezone.now() < timedelta(hours=12):
+                return Response({"detail": "Bạn chỉ có thể hủy lịch tập trước ít nhất 12 giờ."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            workout_schedule.status = WorkoutScheduleStatus.CANCELLED.value
+            workout_schedule.save()
+
+            return Response({"detail": "Bạn đã hủy lịch tập thành công."})
+
+        except WorkoutSchedule.DoesNotExist:
+            return Response({"detail": "Lịch tập không tồn tại."}, status=status.HTTP_404_NOT_FOUND)

@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from .views import TrainingPackageViewSet, TrainerPackageViewSet, MemberSubscriptionViewSet, \
-    TrainerWorkoutScheduleViewSet, TrainerScheduleApprovalViewSet, TrainerScheduleChangeRequestViewSet, CategoryPackageViewSet
+    TrainerWorkoutScheduleViewSet, TrainerScheduleApprovalViewSet, TrainerScheduleChangeRequestViewSet, \
+    CategoryPackageViewSet, WorkoutScheduleViewSet
 
 router = DefaultRouter()
 router.register('user', views.UserViewSet, basename='user')
@@ -15,7 +16,7 @@ router.register('trainer-packages', TrainerPackageViewSet, basename='trainer-pac
 router.register('member-subscriptions', MemberSubscriptionViewSet, basename='member-Subscriptions')
 router.register(r'trainer-schedules', TrainerScheduleApprovalViewSet, basename='trainer-schedules')
 router.register(r'trainer-schedule-changes', TrainerScheduleChangeRequestViewSet, basename='trainer-schedule-changes')
-
+router.register(r'workout-schedules', WorkoutScheduleViewSet, basename='workout-schedule')
 urlpatterns = [
     path('', include(router.urls)),
 
