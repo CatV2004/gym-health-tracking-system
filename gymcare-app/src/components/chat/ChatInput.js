@@ -64,6 +64,8 @@ const ChatInput = ({ onSend, style }) => {
           ref={inputRef}
           style={styles.input}
           value={message}
+          autoCorrect={false}       
+          autoComplete="off"
           onChangeText={setMessage}
           placeholder="Nhập tin nhắn..."
           placeholderTextColor={colors.textSecondary}

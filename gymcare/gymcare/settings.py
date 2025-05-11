@@ -28,7 +28,6 @@ ALLOWED_HOSTS = ['*']
 
 CORS_ALLOWED_ORIGINS = [
     "http://192.168.253.1:3000",
-    "https://8949-125-235-239-76.ngrok-free.app",
 ]
 
 # Application definition
@@ -62,6 +61,13 @@ import os
 load_dotenv()
 
 # Configuration
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Các thư mục chứa static files gốc
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 cloudinary.config(
     cloud_name = os.getenv("CLOUD_NAME"),
     api_key = os.getenv("API_KEY"),
@@ -69,13 +75,14 @@ cloudinary.config(
     secure=True
 )
 
-
 VNPAY_CONFIG = {
     "vnp_TmnCode": os.getenv("VNP_TMNCODE"),
     "vnp_HashSecret": os.getenv("VNP_HASHSECRET"),
     "vnp_Url": os.getenv("VNP_URL"),
     "vnp_ReturnUrl": os.getenv("VNP_RETURNURL"),
 }
+print("RETURN URL:", os.getenv("VNP_RETURNURL"))
+
 
 ZALOPAY_CONFIG = {
     "app_id": os.getenv("ZALOPAY_APP_ID"),
@@ -145,7 +152,8 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            # "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("redis_server", 6379)],
         },
     },
 }
@@ -165,10 +173,16 @@ OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSO
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gymcaredb',
-        'USER': 'root',
-        'PASSWORD': 'Admin@123',
-        'HOST': '' # mặc định localhost
+        'NAME': os.getenv('DB_NAME', 'gymcaredb'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Admin@123'),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'connect_timeout': 30
+        }
     }
 }
 

@@ -219,7 +219,7 @@ const ChatScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    paddingTop: 45,
   },
   safeArea: {
     flex: 1,
@@ -232,9 +232,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 15,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    // backgroundColor: "rgb(195, 187, 187)",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "rgb(226, 224, 224)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
