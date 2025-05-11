@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_401_UNAUTHORIZED
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-from django.db.models import Count
+from django.db.models import Count, Avg
 from rest_framework.decorators import api_view
 from .paginators import Pagination
 from django.utils import timezone
@@ -26,10 +26,11 @@ from .utils.vnpay_helper import VNPay, VNPayDatabase, get_client_ip
 from .serializers import UserSerializer, CategoryPackageSerializer, TrainingPackageSerializer, \
     UpdateUserSerializer, TrainerSerializer, TrainerRegisterSerializer, MemberSerializer, \
     ChangePasswordSerializer, MemberRegisterSerializer, TrainingPackageDetailSerializer, \
-    SubscriptionSerializer, SubscriptionCreateSerializer, WorkoutScheduleCreateSerializer, \
-    WorkoutScheduleChangeRequestSerializer, WorkoutScheduleTrainerSerializer, WorkoutScheduleWithTrainerSerializer, \
+    SubscriptionSerializer, SubscriptionCreateSerializer, \
+    WorkoutScheduleChangeRequestSerializer, \
     MemberHealthUpdateSerializer, CurrentUserSerializer, PaymentCreateSerializer, PaymentSerializer, \
-    VNPayCreateSerializer, PaymentRequestSerializer
+    VNPayCreateSerializer, PaymentRequestSerializer, WorkoutProgressSerializer, PTDashboardSerializer, ReviewSerializer, \
+    ReviewDisplaySerializer, WorkoutScheduleSerializer, MemberResponseToChangeRequestSerializer
 from django.db import transaction
 from .utils.zalopay_helper import ZaloPayHelper
 import requests
@@ -37,7 +38,7 @@ import hashlib
 import hmac
 import time
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
@@ -92,10 +93,12 @@ class ZaloPayOrderView(APIView):
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
     def get_serializer_class(self):
         if self.action == 'change_password':
             return ChangePasswordSerializer
-        elif self.action in ['update', 'partial_update']:
+        elif self.action in ['update', 'partial_update', 'update_info']:
             return serializers.UpdateUserSerializer
         elif self.action == 'get_current_user':
             return serializers.CurrentUserSerializer
@@ -163,7 +166,11 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         user = request.user
         self.check_object_permissions(request, user)
 
-        serializer = serializers.UpdateUserSerializer(user, data=request.data, partial=True)
+        data = request.data.copy()
+        if 'avatar' in request.FILES:
+            data['avatar'] = request.FILES['avatar']
+
+        serializer = serializers.UpdateUserSerializer(user, data=data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
@@ -175,6 +182,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 class TrainerViewSet(mixins.CreateModelMixin,
                      mixins.ListModelMixin,
                      mixins.DestroyModelMixin,
+                    mixins.RetrieveModelMixin,
                      viewsets.GenericViewSet):
     queryset = Trainer.objects.select_related("user").all()
 
@@ -183,11 +191,17 @@ class TrainerViewSet(mixins.CreateModelMixin,
             return TrainerRegisterSerializer
         elif self.action == 'respond_change_request':
             return WorkoutScheduleChangeRequestSerializer
+        elif self.action in ['my_members','my_member_detail']:
+            return MemberSerializer
+        elif self.action in ['record_progress']:
+            return WorkoutProgressSerializer
         return TrainerSerializer
 
     def get_permissions(self):
         if self.action == ['create','destroy','workout_schedules']:
             return [AdminPermission()]
+        elif self.request.method in ['GET']:
+            return [permissions.AllowAny()]
         return [IsAuthenticated(), IsAdminOrSelfTrainer()]
 
     def destroy(self, request, *args, **kwargs):
@@ -212,13 +226,120 @@ class TrainerViewSet(mixins.CreateModelMixin,
         ).order_by('-scheduled_at')
 
         page = self.paginate_queryset(schedules)
-        serializer = WorkoutScheduleTrainerSerializer(page if page is not None else schedules, many=True)
+        serializer = WorkoutScheduleSerializer(page if page is not None else schedules, many=True)
 
         if page is not None:
             return self.get_paginated_response(serializer.data)
 
         return Response({
             "message": "Danh sách lịch tập của hội viên trong gói bạn phụ trách.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='my-members')
+    def my_members(self, request):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        subscriptions = Subscription.objects.filter(
+            training_package__pt=trainer
+        ).select_related('member__user')
+
+        members = Member.objects.filter(id__in=subscriptions.values_list('member_id', flat=True).distinct())
+
+        page = self.paginate_queryset(members)
+        serializer = MemberSerializer(page if page is not None else members, many=True)
+
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+
+        return Response({
+            "message": "Danh sách học viên bạn đang phụ trách.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='my-members/(?P<member_id>[^/.]+)')
+    def my_member_detail(self, request, member_id):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        is_member_under_trainer = Subscription.objects.filter(
+            training_package__pt=trainer,
+            member__id=member_id
+        ).exists()
+
+        if not is_member_under_trainer:
+            return Response({"detail": "Bạn không có quyền xem học viên này."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            member = Member.objects.select_related('user').get(id=member_id)
+        except Member.DoesNotExist:
+            return Response({"detail": "Không tìm thấy học viên."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = MemberSerializer(member)
+        return Response({
+            "message": "Thông tin chi tiết học viên.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='my-members/(?P<member_id>[^/.]+)/progress')
+    def record_progress(self, request, member_id):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        is_member_under_trainer = Subscription.objects.filter(
+            training_package__pt=trainer,
+            member__id=member_id
+        ).exists()
+
+        if not is_member_under_trainer:
+            return Response({"detail": "Bạn không có quyền cập nhật học viên này."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            member = Member.objects.get(id=member_id)
+        except Member.DoesNotExist:
+            return Response({"detail": "Không tìm thấy học viên."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = WorkoutProgressSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(member=member, recorded_by=trainer)
+            return Response({
+                "message": "Tiến độ luyện tập đã được cập nhật.",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='my-members/(?P<member_id>[^/.]+)/get-progress')
+    def get_progress_history(self, request, member_id):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        is_member_under_trainer = Subscription.objects.filter(
+            training_package__pt=trainer,
+            member__id=member_id
+        ).exists()
+
+        if not is_member_under_trainer:
+            return Response({"detail": "Bạn không có quyền xem học viên này."}, status=status.HTTP_403_FORBIDDEN)
+
+        progress_history = WorkoutProgress.objects.filter(
+            member__id=member_id,
+            recorded_by=trainer
+        ).order_by('-created_date')
+
+        page = self.paginate_queryset(progress_history)
+        serializer = WorkoutProgressSerializer(page if page is not None else progress_history, many=True)
+
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+
+        return Response({
+            "message": "Lịch sử tiến độ học viên.",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -232,7 +353,7 @@ class MemberViewSet(mixins.CreateModelMixin,
         if self.action == 'create':
             return MemberRegisterSerializer
         elif self.action == 'get_member_workout_schedules':
-            return WorkoutScheduleWithTrainerSerializer
+            return WorkoutScheduleSerializer
         elif self.action in ['update_health_info', 'get_health_info']:
             return MemberHealthUpdateSerializer
         return MemberSerializer
@@ -287,13 +408,42 @@ class MemberViewSet(mixins.CreateModelMixin,
             'subscription__training_package', 'subscription__member', 'subscription__training_package__pt'
         ).order_by('-scheduled_at')
 
-        serializer = WorkoutScheduleWithTrainerSerializer(schedules, many=True)
+        serializer = WorkoutScheduleSerializer(schedules, many=True)
 
         return Response({
             "message": "Danh sách lịch tập của hội viên.",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='record-progress', permission_classes=[IsAuthenticated])
+    def record_progress(self, request, pk=None):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            member = Member.objects.get(id=pk)
+        except Member.DoesNotExist:
+            return Response({"detail": "Không tìm thấy hội viên."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Kiểm tra xem member có thuộc gói tập của trainer này không
+        is_member_under_trainer = Subscription.objects.filter(
+            training_package__pt=trainer,
+            member=member
+        ).exists()
+
+        if not is_member_under_trainer:
+            return Response({"detail": "Bạn không có quyền cập nhật hội viên này."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = WorkoutProgressSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(member=member, recorded_by=trainer)
+            return Response({
+                "message": "Tiến độ luyện tập đã được cập nhật.",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CategoryPackage.objects.all()
@@ -326,7 +476,7 @@ class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
 
 class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, generics.ListAPIView):
     queryset = TrainingPackage.objects.all()
-    serializer_class = TrainingPackageDetailSerializer
+    serializer_class = TrainingPackageSerializer
     pagination_class = Pagination
     parser_classes = [JSONParser, MultiPartParser]
 
@@ -335,10 +485,10 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
             return [MemberPermission()]
         return [permissions.AllowAny()]
 
-    def get_serializer_class(self):
-        if self.action == 'subscribe':
-            return SubscriptionSerializer
-        return super().get_serializer_class()
+    # def get_serializer_class(self):
+    #     if self.action == 'subscribe':
+    #         return SubscriptionSerializer
+    #     return super().get_serializer_class()
 
     def get_member(self, request):
         user = request.user
@@ -370,22 +520,34 @@ class MemberSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             active=True
         ).select_related('training_package', 'training_package__pt')
 
+    @action(detail=False, methods=['get'], url_path='expired')
+    def expired_subscriptions(self, request):
+        expired_subs = Subscription.objects.filter(
+            member__user=request.user,
+            active=False,
+            status=2
+        ).select_related('training_package', 'training_package__pt')
+        serializer = self.get_serializer(expired_subs, many=True)
+        return Response(serializer.data)
+
 
 class SubscriptionViewSet(viewsets.GenericViewSet):
     queryset = Subscription.objects.all()
-    serializer_class = SubscriptionCreateSerializer
+
+    def get_serializer_class(self):
+        if self.action in ['create']:
+            return SubscriptionCreateSerializer
+        if self.action == 'retrieve':
+            return SubscriptionSerializer
+        else:
+            return SubscriptionSerializer
 
     def get_permissions(self):
         if self.action in ['create']:
             return [MemberPermission()]
+        if self.action == 'retrieve':
+            return [permissions.IsAuthenticated()]
         return []
-
-    def get_queryset(self):
-        user = self.request.user
-        if not user.is_authenticated or not hasattr(user, 'member_profile'):
-            return Subscription.objects.none()
-
-        return self.queryset.filter(member=user.member_profile, active=True)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -396,77 +558,256 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             "data": SubscriptionSerializer(subscription).data
         }, status=status.HTTP_201_CREATED)
 
+    def retrieve(self, request, pk=None):
+        try:
+            subscription = Subscription.objects.get(pk=pk)
+        except Subscription.DoesNotExist:
+            return Response({"detail": "Không tìm thấy gói tập."}, status=status.HTTP_404_NOT_FOUND)
 
-class WorkoutScheduleViewSet(viewsets.GenericViewSet,
-                             viewsets.mixins.CreateModelMixin,
-                             viewsets.mixins.ListModelMixin):
-    queryset = WorkoutSchedule.objects.all()
-    serializer_class = WorkoutScheduleCreateSerializer
-    permission_classes = [MemberPermission]
-
-    def get_queryset(self):
-        user = self.request.user
-        if not user.is_authenticated or not hasattr(user, 'member_profile'):
-            return WorkoutSchedule.objects.none()
-        return self.queryset.filter(subscription__member=user.member_profile)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        workout_schedule = serializer.save()
-        return Response({
-            "message": "Lên lịch tập thành công.",
-            "data": WorkoutScheduleCreateSerializer(workout_schedule).data
-        }, status=status.HTTP_201_CREATED)
+        serializer = SubscriptionSerializer(subscription)
+        return Response(serializer.data)
 
 
-class MemberChangeRequestViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = WorkoutScheduleChangeRequestSerializer
+class WorkoutScheduleViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return WorkoutScheduleChangeRequest.objects.filter(
-            schedule__subscription__member__user=self.request.user
-        ).order_by("-created_date")
+        user = self.request.user
+        queryset = WorkoutSchedule.objects.all()
+        if hasattr(user, 'member_profile'):
+            queryset = queryset.filter(subscription__member=user.member_profile)
+        elif hasattr(user, 'trainer_profile'):
+            queryset = queryset.filter(subscription__training_package__pt=user.trainer_profile)
 
-    @action(detail=True, methods=["post"], url_path="accept")
-    def accept_schedule_change(self, request, pk=None):
+        return  queryset
+
+    def list(self, request):
+        queryset = self.get_queryset().order_by('-scheduled_at')
+        serializer = WorkoutScheduleSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        instance = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = WorkoutScheduleSerializer(instance)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = WorkoutScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, pk=None):
+        instance = get_object_or_404(WorkoutSchedule, pk=pk)
+        serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=False)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, pk=None):
+        instance = get_object_or_404(WorkoutSchedule, pk=pk)
+        if hasattr(request.user, 'trainer_profile'):
+            if set(request.data.keys()) != {'status'} or request.data['status'] != WorkoutSchedule.COMPLETED:
+                return Response(
+                    {"detail": "Trainer chỉ được phép cập nhật trạng thái thành COMPLETED"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='change-requests')
+    def change_requests(self, request, pk=None):
+        schedule = get_object_or_404(self.get_queryset(), pk=pk)
+
+        requests = WorkoutScheduleChangeRequest.objects.filter(
+            schedule=schedule
+        ).order_by('-created_date')
+
+        serializer = WorkoutScheduleChangeRequestSerializer(requests, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], url_path='trainer-complete')
+    def trainer_complete_session(self, request, pk=None):
+        instance = get_object_or_404(self.get_queryset(), pk=pk)
+
+        serializer = WorkoutScheduleSerializer(
+            instance,
+            data={'status': WorkoutScheduleStatus.COMPLETED.value},
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'], url_path='trainer-approve')
+    def trainer_approve_session(self, request, pk=None):
+        instance = get_object_or_404(self.get_queryset(), pk=pk)
+
+        if instance.status not in [WorkoutScheduleStatus.SCHEDULED.value]:
+            return Response(
+                {"detail": "Chỉ có thể duyệt lịch có trạng thái SCHEDULED"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = WorkoutScheduleSerializer(
+            instance,
+            data={'status': WorkoutScheduleStatus.APPROVED.value},
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
+    queryset = WorkoutScheduleChangeRequest.objects.all()
+    serializer_class = WorkoutScheduleChangeRequestSerializer
+    permission_classes = [IsTrainer, IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # For trainers, only show their own requests
+        if hasattr(self.request.user, 'trainer_profile'):
+            queryset = queryset.filter(trainer=self.request.user.trainer_profile)
+
+        # Filter by schedule if provided
+        schedule_id = self.request.query_params.get('schedule_id')
+        if schedule_id:
+            queryset = queryset.filter(schedule_id=schedule_id)
+
+        # Filter by status if provided
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+
+        return queryset.order_by('-created_date')
+
+    def perform_destroy(self, instance):
+        # Only allow deletion if status is PENDING
+        if instance.status != ChangeRequestStatus.PENDING.value:
+            raise serializers.ValidationError({"detail": "Only pending change requests can be deleted."})
+
+        # Reset schedule status if this was the only pending change request
+        schedule = instance.schedule
+        if not WorkoutScheduleChangeRequest.objects.filter(
+                schedule=schedule,
+                status=ChangeRequestStatus.PENDING.value
+        ).exclude(id=instance.id).exists():
+            schedule.status = WorkoutScheduleStatus.SCHEDULED.value
+            schedule.save()
+
+        instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
         change_request = self.get_object()
 
-        if change_request.schedule.subscription.member.user != request.user:
-            return Response({"detail": "Không có quyền thực hiện."}, status=403)
+        # Only allow cancellation if status is PENDING
+        if change_request.status != ChangeRequestStatus.PENDING.value:
+            return Response(
+                {"detail": "Only pending change requests can be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if change_request.status != ChangeRequestStatus.PENDING:
-            return Response({"detail": "Yêu cầu đã được xử lý trước đó."}, status=400)
-
-        schedule = change_request.schedule
-        schedule.scheduled_at = change_request.proposed_time
-        schedule.status = WorkoutScheduleStatus.CHANGED
-        schedule.save()
-
-        change_request.status = ChangeRequestStatus.ACCEPTED
+        change_request.status = ChangeRequestStatus.REJECTED.value
         change_request.save()
 
-        return Response({"detail": "Bạn đã chấp nhận lịch tập mới."}, status=200)
+        # Reset schedule status if this was the only pending change request
+        schedule = change_request.schedule
+        if not WorkoutScheduleChangeRequest.objects.filter(
+                schedule=schedule,
+                status=ChangeRequestStatus.PENDING.value
+        ).exists():
+            schedule.status = WorkoutScheduleStatus.SCHEDULED.value
+            schedule.save()
 
-    @action(detail=True, methods=["post"], url_path="reject")
-    def reject_schedule_change(self, request, pk=None):
+        return Response(
+            {"detail": "Change request cancelled successfully."},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['post'],
+            permission_classes=[IsMember, IsMemberOwner],
+            serializer_class=MemberResponseToChangeRequestSerializer)
+    def member_response(self, request, pk=None):
         change_request = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if change_request.schedule.subscription.member.user != request.user:
-            return Response({"detail": "Không có quyền thực hiện."}, status=403)
+        data = serializer.validated_data
+        response = data['response']
+        reason = data.get('reason', '')
 
-        if change_request.status != ChangeRequestStatus.PENDING:
-            return Response({"detail": "Yêu cầu đã được xử lý trước đó."}, status=400)
+        if change_request.status != ChangeRequestStatus.PENDING.value:
+            return Response(
+                {"detail": "This change request has already been processed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        change_request.status = ChangeRequestStatus.REJECTED
-        change_request.save()
+        if response == 'ACCEPT':
+            # Cập nhật lịch tập
+            schedule = change_request.schedule
+            schedule.scheduled_at = change_request.proposed_time
+            schedule.status = WorkoutScheduleStatus.CHANGED.value
+            schedule.save()
 
-        schedule = change_request.schedule
-        schedule.status = WorkoutScheduleStatus.SCHEDULED
-        schedule.save()
+            # Cập nhật trạng thái yêu cầu
+            change_request.status = ChangeRequestStatus.ACCEPTED.value
+            change_request.save()
 
-        return Response({"detail": "Bạn đã từ chối lịch tập mới."}, status=200)
+            # Từ chối các yêu cầu khác cho cùng lịch tập
+            WorkoutScheduleChangeRequest.objects.filter(
+                schedule=schedule,
+                status=ChangeRequestStatus.PENDING.value
+            ).exclude(id=change_request.id).update(
+                status=ChangeRequestStatus.REJECTED.value
+            )
+
+            return Response(
+                {"detail": "Schedule change accepted successfully."},
+                status=status.HTTP_200_OK
+            )
+        else:
+            # Từ chối yêu cầu
+            change_request.status = ChangeRequestStatus.REJECTED.value
+            if reason:
+                change_request.reason = f"Member rejection reason: {reason}"
+            change_request.save()
+
+            # Khôi phục trạng thái lịch tập
+            schedule = change_request.schedule
+            if not WorkoutScheduleChangeRequest.objects.filter(
+                    schedule=schedule,
+                    status=ChangeRequestStatus.PENDING.value
+            ).exists():
+                schedule.status = WorkoutScheduleStatus.SCHEDULED.value
+                schedule.save()
+
+            return Response(
+                {"detail": "Schedule change rejected."},
+                status=status.HTTP_200_OK
+            )
+
+    @action(detail=False, methods=['get'],
+            permission_classes=[IsMember])
+    def member_requests(self, request):
+        # Lấy tất cả yêu cầu thay đổi liên quan đến member
+        member = request.user.member_profile
+        queryset = self.get_queryset().filter(
+            schedule__subscription__member=member
+        ).order_by('-created_date')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class PaymentViewSet(viewsets.ViewSet):
@@ -507,6 +848,70 @@ class PaymentViewSet(viewsets.ViewSet):
         )
 
 
+class PTDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if not hasattr(user, 'trainer_profile'):
+            return Response({"detail": "Only PTs can access this dashboard."}, status=403)
+
+        trainer = user.trainer_profile
+
+        serializer = PTDashboardSerializer(trainer, context={"request": request})
+        return Response(serializer.data)
+
+
+
+class ReviewViewSet(viewsets.ViewSet, generics.CreateAPIView):
+    pagination_class = Pagination
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsMember()]
+        elif self.request.method == 'DELETE':
+            return [IsMember(), IsReviewOwner()]
+        return []
+
+    def get_serializer_class(self):
+        if self.request.method in ['POST']:
+            return ReviewSerializer
+        return ReviewDisplaySerializer
+
+    def get_queryset(self):
+        return Review.objects.filter(parent_comment__isnull=True, deleted_date__isnull=True) \
+            .annotate(reply_count=Count('replies')) \
+            .select_related('reviewer__user', 'training_package', 'trainer')
+
+    def create(self, request):
+        serializer = ReviewSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        review = serializer.save()
+        return Response(ReviewDisplaySerializer(review, context={'request': request}).data, status=201)
+
+    def destroy(self, request, pk=None):
+        review = get_object_or_404(Review, pk=pk, reviewer=request.user.member_profile)
+        review.soft_delete()  # giả sử bạn đang dùng soft delete
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], url_path='gym-feedbacks')
+    def list_gym_feedbacks(self, request):
+        queryset = self.get_queryset().filter(trainer__isnull=True, training_package__isnull=True)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = ReviewDisplaySerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='replies')
+    def get_replies(self, request, pk=None):
+        parent = get_object_or_404(Review, pk=pk, deleted_date__isnull=True)
+        replies = parent.replies.filter(deleted_date__isnull=True)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(replies, request)
+        serializer = ReviewDisplaySerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
 
 #--------------------------------------------------------------------------------#
 #-------------------------------VNPAY----------------------------------------#
@@ -543,8 +948,10 @@ class PaymentView(APIView):
                 'vnp_Locale': serializer.validated_data.get('language', 'vn'),
                 'vnp_CreateDate': datetime.now().strftime('%Y%m%d%H%M%S'),
                 'vnp_IpAddr': get_client_ip(request),
+
                 'vnp_ReturnUrl': settings.VNPAY_CONFIG['vnp_ReturnUrl']
             }
+
 
             if serializer.validated_data.get('bank_code'):
                 vnp.requestData['vnp_BankCode'] = serializer.validated_data['bank_code']

@@ -1,6 +1,6 @@
-const menuConfig = (navigation, handleLogout) => [
+const menuConfig = (navigation, handleLogout, user) => {
+  const menu = [
     { label: "Chương trình giới thiệu bạn", onPress: () => {} },
-    { label: "Cập nhật thông tin sức khỏe", onPress: () => navigation.navigate("UpdateHealth") },
     { label: "Ưu đãi", onPress: () => navigation.navigate("Promotions") },
     { label: "Hướng dẫn sử dụng", onPress: () => {} },
     { label: "Liên hệ", onPress: () => navigation.navigate("Contact") },
@@ -13,6 +13,16 @@ const menuConfig = (navigation, handleLogout) => [
     { label: "Vô hiệu hóa tài khoản", onPress: () => {} },
     { label: "Đăng xuất", onPress: handleLogout },
   ];
-  
-  export default menuConfig;
-  
+
+  // Chỉ thêm nếu user có role === 2
+  if (user?.role === 2) {
+    menu.splice(1, 0, { // thêm sau phần tử đầu tiên
+      label: "Cập nhật thông tin sức khỏe",
+      onPress: () => navigation.navigate("UpdateHealth"),
+    });
+  }
+
+  return menu;
+};
+
+export default menuConfig;

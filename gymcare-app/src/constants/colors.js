@@ -7,11 +7,17 @@ const colors = {
   // Backgrounds
   background: "#F9F9F9", // Màu nền chung
   cardBackground: "#FFFFFF", // Background của các card
+  white: "#FFFFFF",
 
   // Text colors
   textPrimary: "#333333",
   textSecondary: "#666666",
   textPlaceholder: "#999999",
+  darkGray: "#333333", 
+  gray: "#666666",    
+  lightGray: "#E0E0E0",
+  white: '#FFFFFF',
+  darkGreen: "#006400",
 
   // Button colors
   buttonPrimary: "#FF6347",

@@ -276,6 +276,7 @@ class WorkoutScheduleStatus(IntEnum):
     CANCELLED = 2
     PENDING_CHANGE = 3
     CHANGED = 4
+    APPROVED = 5
 
     @classmethod
     def choices(cls):
@@ -324,18 +325,39 @@ class WorkoutScheduleChangeRequest(BaseModel):
 
 
 class Review(BaseModel):
-    reviewer = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name="members")
-    training_package = models.ForeignKey(TrainingPackage, on_delete=models.CASCADE, related_name="reviews")
+    reviewer = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name="reviews")
+
+    trainer = models.ForeignKey(Trainer, null=True, blank=True, on_delete=models.CASCADE, related_name="reviews")
+    training_package = models.ForeignKey(TrainingPackage, null=True, blank=True, on_delete=models.CASCADE,
+                                         related_name="reviews")
+    gym_feedback = models.BooleanField(default=False, help_text="Đánh giá về phòng gym/chất lượng dịch vụ chung")
+
     parent_comment = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
     comment = models.TextField(null=True, blank=True)
-    rating = models.IntegerField(null=False)  #1-5
+    rating = models.IntegerField(null=True)  # 1-5
 
     def clean(self):
-        if self.rating <= 2 and not self.comment:
-            raise ValidationError("A comment is required when the rating is 2 or lower.")
+        if not (self.trainer or self.training_package or self.gym_feedback):
+            raise ValidationError("Phải đánh giá ít nhất một đối tượng: huấn luyện viên, gói tập hoặc phòng gym.")
+
+        count_targets = sum(bool(x) for x in [self.trainer, self.training_packaage, self.gym_feedback])
+        if count_targets > 1:
+            raise ValidationError("Chỉ được đánh giá một đối tượng tại một thời điểm.")
+
+        # Bắt buộc có comment nếu đánh giá thấp
+        if self.rating is not None and self.rating <= 2 and not self.comment:
+            raise ValidationError("Vui lòng nhập nhận xét khi đánh giá từ 2 sao trở xuống.")
+
+    def reply_count(self):
+        return self.replies.filter(deleted_date__isnull=True).count()
 
     def __str__(self):
-        return f"Review by {self.reviewer.user.username} for {self.training_package.name}"
+        target = (
+            f"Trainer: {self.trainer.user.username}" if self.trainer else
+            f"Package: {self.training_package.name}" if self.training_package else
+            "Gym/Service"
+        )
+        return f"Review by {self.reviewer.user.username} - {target}"
 
 class Report(BaseModel):
     report_type = models.CharField(max_length=50, choices=[("REVENUE", "Doanh thu"), ("USAGE", "Sử dụng")])
