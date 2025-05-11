@@ -1,37 +1,136 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<h1 class="admin-header">Thống Kê Doanh Thu</h1>
-<p class="total-revenue">Tổng doanh thu: <strong>{{ total_revenue|floatformat:2 }}</strong> VND</p>
+<div class="container my-4">
+  <h1 class="mb-4 text-primary">📊 Thống kê doanh thu</h1>
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+      <label for="year" class="col-form-label">Chọn năm:</label>
+    </div>
+    <div class="col-auto">
+      <input type="number" style="background-color: white; color: black;" min="2000" max="2100" step="1" name="year" id="year"
+             value="{{ selected_year }}" class="form-control" placeholder="VD: 2024">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">Lọc theo năm</button>
+    </div>
+  </form>
+  <!-- Tổng quan -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card text-white bg-success mb-3">
+        <div class="card-header">Tổng doanh thu</div>
+        <div class="card-body">
+          <h4 class="card-title">{{ total_revenue|floatformat:0 }} đ</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-white bg-info mb-3">
+        <div class="card-header">Số giao dịch thành công</div>
+        <div class="card-body">
+          <h4 class="card-title">{{ total_count }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-white bg-warning mb-3">
+        <div class="card-header">Giao dịch trung bình</div>
+        <div class="card-body">
+          <h4 class="card-title">{{ avg_transaction|floatformat:0 }} đ</h4>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<!-- Biểu đồ thống kê doanh thu -->
-<div class="chart-container">
-    <canvas id="revenueChart" width="400" height="200"></canvas>
+  <!-- Trạng thái thanh toán -->
+  <h4 class="mt-5">🔁 Tỷ lệ trạng thái thanh toán</h4>
+  <table class="table table-bordered mt-3 text-center">
+    <thead class="table-light">
+      <tr>
+        <th>Trạng thái</th>
+        <th>Số lượng</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for status in status_distribution %}
+      <tr>
+        <td><strong>{{ status.status_name }}</strong></td>
+        <td>{{ status.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Phương thức thanh toán -->
+  <h4 class="mt-5">💳 Doanh thu theo phương thức thanh toán</h4>
+  <table class="table table-bordered mt-3 text-center">
+    <thead class="table-light">
+      <tr>
+        <th>Phương thức</th>
+        <th>Tổng doanh thu</th>
+        <th>Số giao dịch</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in method_stats %}
+      <tr>
+        <td><strong>{{ m.method_name }}</strong></td>
+        <td>{{ m.total|floatformat:0 }} đ</td>
+        <td>{{ m.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Biểu đồ -->
+  <h4 class="mt-5">📈 Biểu đồ doanh thu theo tháng</h4>
+  <div class="my-4">
+    <canvas id="monthlyChart" height="100"></canvas>
+  </div>
 </div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    window.onload = function() {
-        var ctx = document.getElementById('revenueChart').getContext('2d');
-        var revenueChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: {{ months|safe }},
-                datasets: [{
-                    label: 'Doanh thu theo tháng',
-                    data: {{ monthly_revenue|safe }},
-                    fill: false,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
+  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  const monthlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|safe }},
+      datasets: [{
+        label: 'Doanh thu theo tháng',
+        data: {{ chart_data|safe }},
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Thống kê doanh thu theo tháng'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Doanh thu (VNĐ)'
+          }
+        }
+      }
     }
+  });
 </script>
-
 {% endblock %}

@@ -331,6 +331,7 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
         return subscription
 
 
+
 class WorkoutScheduleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutSchedule
@@ -420,6 +421,22 @@ class WorkoutScheduleChangeRequestSerializer(serializers.ModelSerializer):
         model = WorkoutScheduleChangeRequest
         fields = ['status']
 
+    def validate_schedule(self, schedule):
+        if schedule.status != WorkoutScheduleStatus.PENDING:
+            raise serializers.ValidationError("Chỉ có thể yêu cầu thay đổi lịch đang chờ.")
+        return schedule
+
+    def create(self, validated_data):
+        request = self.context['request']
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            raise serializers.ValidationError("Bạn không có quyền tạo yêu cầu này.")
+
+        # Tạo yêu cầu thay đổi lịch tập
+        return WorkoutScheduleChangeRequest.objects.create(
+            trainer=trainer,
+            **validated_data
+        )
 
 class WorkoutScheduleTrainerUpdateSerializer(serializers.Serializer):
     proposed_time = serializers.DateTimeField()
