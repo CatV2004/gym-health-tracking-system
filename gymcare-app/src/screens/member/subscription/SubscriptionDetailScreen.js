@@ -44,7 +44,12 @@ const SubscriptionDetailScreen = ({ route }) => {
           </Text>
         </View>
       </View>
+<<<<<<< HEAD
 
+=======
+      
+      {/* Có thể thêm phần lịch tập hoặc thông tin khác ở đây */}
+>>>>>>> f8a7175415868d1acd5d1a22f0b24cec75ebcced
     </ScrollView>
   );
 };

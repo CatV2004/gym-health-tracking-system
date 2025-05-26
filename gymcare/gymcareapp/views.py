@@ -41,6 +41,8 @@ class ZaloPayOrderView(APIView):
     def post(self, request, pk):
         payment = get_object_or_404(Payment, pk=pk)
 
+        payment = get_object_or_404(Payment, pk=pk)
+
         try:
             app_id = settings.ZALOPAY_CONFIG["app_id"]
             key1 = settings.ZALOPAY_CONFIG["key1"]
@@ -496,7 +498,7 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
 #             pt__user=self.request.user,
 #             active=True
 #         ).annotate(member_count=Count('subscriptions')).select_related('pt__user')
-#
+
 
 class MemberSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SubscriptionSerializer

@@ -23,7 +23,13 @@ const RegisterButton = ({ trainingPackage }) => {
       // dispatch(fetchMemberHealth());
     }
   };
-  
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (isModalVisible && health) {
+  //     }
+  //   }, [isModalVisible, health])
+  // );
+
   const handleCloseModal = () => {
     setIsModalVisible(false);
   };

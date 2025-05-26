@@ -46,7 +46,6 @@ export default function PackageItem({ item, onPress }) {
       <Text style={styles.name}>{item.name}</Text>
       <Text style={styles.description}>{item.description}</Text>
 
-      {/* ddasnh giá */}
       {item.average_rating != null && item.total_reviews > 0 && (
         <View style={styles.ratingContainer}>
           {renderStars(item.average_rating)}
@@ -58,6 +57,7 @@ export default function PackageItem({ item, onPress }) {
           </Text>
         </View>
       )}
+
 
       <View style={styles.bottomRow}>
         <View>

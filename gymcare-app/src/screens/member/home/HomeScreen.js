@@ -4,7 +4,7 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
