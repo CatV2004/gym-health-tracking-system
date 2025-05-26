@@ -70,8 +70,6 @@ const HomeScreen = ({ navigation }) => {
             <CategorySection navigation={navigation} categories={categories} />
             <PromotionCarousel />
             <NewsSection />
-
-            
           </>
         }
         refreshing={refreshing}

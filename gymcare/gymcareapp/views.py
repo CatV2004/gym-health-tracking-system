@@ -1,5 +1,4 @@
 from datetime import timedelta
-
 from django.shortcuts import render
 from rest_framework import viewsets, status, generics, permissions, mixins
 from django.http import JsonResponse
@@ -26,14 +25,7 @@ from .pems import *
 import json
 import uuid
 from .utils.vnpay_helper import VNPay, VNPayDatabase, get_client_ip
-from .serializers import UserSerializer, CategoryPackageSerializer, TrainingPackageSerializer, \
-    UpdateUserSerializer, TrainerSerializer, TrainerRegisterSerializer, MemberSerializer, \
-    ChangePasswordSerializer, MemberRegisterSerializer, TrainingPackageDetailSerializer, \
-    SubscriptionSerializer, SubscriptionCreateSerializer, \
-    WorkoutScheduleChangeRequestSerializer, \
-    MemberHealthUpdateSerializer, CurrentUserSerializer, PaymentCreateSerializer, PaymentSerializer, \
-    VNPayCreateSerializer, PaymentRequestSerializer, WorkoutProgressSerializer, PTDashboardSerializer, ReviewSerializer, \
-    ReviewDisplaySerializer, WorkoutScheduleSerializer, MemberResponseToChangeRequestSerializer
+from .serializers import *
 from django.db import transaction
 from .utils.zalopay_helper import ZaloPayHelper
 import requests
@@ -47,16 +39,13 @@ from datetime import datetime, timedelta
 
 class ZaloPayOrderView(APIView):
     def post(self, request, pk):
-        # 1. Tìm payment theo id
         payment = get_object_or_404(Payment, pk=pk)
 
-        # 2. Tạo order để gửi lên ZaloPay
         try:
             app_id = settings.ZALOPAY_CONFIG["app_id"]
             key1 = settings.ZALOPAY_CONFIG["key1"]
             create_order_url = "https://sandbox.zalopay.com.vn/v001/tpe/createorder"  # link sandbox
 
-            # 3. Các tham số ZaloPay yêu cầu
             amount = int(payment.amount)
             app_trans_id = f"{int(time.time())}"
             app_user = "gymcare-user"
@@ -72,19 +61,16 @@ class ZaloPayOrderView(APIView):
                 "callback_url": "https://yourdomain.com/payment/callback/",
             }
 
-            # 4. Tính mac SHA256
             data = f"{order['app_id']}|{order['app_trans_id']}|{order['app_user']}|{order['amount']}|{order['app_user']}|{order['description']}|{order['bank_code']}|{order['item']}|{order['embed_data']}|{order['callback_url']}"
             mac = hmac.new(key1.encode(), data.encode(), hashlib.sha256).hexdigest()
             order['mac'] = mac
 
-            # 5. Gửi request lên ZaloPay
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             response = requests.post(create_order_url, data=order, headers=headers)
 
             res_data = response.json()
 
             if res_data.get("return_code") == 1:
-                # Thành công
                 order_url = res_data.get("order_url")
                 return Response({"order_url": order_url}, status=status.HTTP_200_OK)
             else:
@@ -423,7 +409,6 @@ class MemberViewSet(mixins.CreateModelMixin,
         trainer = getattr(request.user, 'trainer_profile', None)
         if not trainer:
             return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
-
         try:
             member = Member.objects.get(id=pk)
         except Member.DoesNotExist:
@@ -502,16 +487,16 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
         return user.member_profile, None
 
 
-class TrainerPackageViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = TrainingPackageSerializer
-    permission_classes = [TrainerPermission]
-
-    def get_queryset(self):
-        return TrainingPackage.objects.filter(
-            pt__user=self.request.user,
-            active=True
-        ).annotate(member_count=Count('subscriptions')).select_related('pt__user')
-
+# class TrainerPackageViewSet(viewsets.ReadOnlyModelViewSet):
+#     serializer_class = TrainingPackageSerializer
+#     permission_classes = [TrainerPermission]
+#
+#     def get_queryset(self):
+#         return TrainingPackage.objects.filter(
+#             pt__user=self.request.user,
+#             active=True
+#         ).annotate(member_count=Count('subscriptions')).select_related('pt__user')
+#
 
 class MemberSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SubscriptionSerializer
@@ -632,18 +617,18 @@ class WorkoutScheduleViewSet(viewsets.ViewSet):
         serializer = WorkoutScheduleChangeRequestSerializer(requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['patch'], url_path='trainer-complete')
-    def trainer_complete_session(self, request, pk=None):
-        instance = get_object_or_404(self.get_queryset(), pk=pk)
-
-        serializer = WorkoutScheduleSerializer(
-            instance,
-            data={'status': WorkoutScheduleStatus.COMPLETED.value},
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+    # @action(detail=True, methods=['patch'], url_path='trainer-complete')
+    # def trainer_complete_session(self, request, pk=None):
+    #     instance = get_object_or_404(self.get_queryset(), pk=pk)
+    #
+    #     serializer = WorkoutScheduleSerializer(
+    #         instance,
+    #         data={'status': WorkoutScheduleStatus.COMPLETED.value},
+    #         partial=True
+    #     )
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #     return Response(serializer.data)
 
     @action(detail=True, methods=['patch'], url_path='trainer-approve')
     def trainer_approve_session(self, request, pk=None):
@@ -864,7 +849,6 @@ class PTDashboardView(APIView):
 
         serializer = PTDashboardSerializer(trainer, context={"request": request})
         return Response(serializer.data)
-
 
 
 class ReviewViewSet(viewsets.ViewSet, generics.CreateAPIView):

@@ -46,7 +46,7 @@ export default function PackageItem({ item, onPress }) {
       <Text style={styles.name}>{item.name}</Text>
       <Text style={styles.description}>{item.description}</Text>
 
-      {/* Hiển thị đánh giá */}
+      {/* ddasnh giá */}
       {item.average_rating != null && item.total_reviews > 0 && (
         <View style={styles.ratingContainer}>
           {renderStars(item.average_rating)}
@@ -59,7 +59,6 @@ export default function PackageItem({ item, onPress }) {
         </View>
       )}
 
-      {/* Các thông tin khác */}
       <View style={styles.bottomRow}>
         <View>
           <Text>💰 {item.cost} đ</Text>

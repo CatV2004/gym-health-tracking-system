@@ -9,14 +9,13 @@ router.register('trainer', views.TrainerViewSet, basename='trainer')
 router.register('member', views.MemberViewSet, basename='member')
 router.register('category-packages', views.CategoryPackageViewSet, basename='category-packages')
 router.register('training-package', views.TrainingPackageViewSet, basename='training-package')
-router.register('trainer-packages', views.TrainerPackageViewSet, basename='trainer-packages')
+# router.register('trainer-packages', views.TrainerPackageViewSet, basename='trainer-packages')
 router.register('member-subscriptions', views.MemberSubscriptionViewSet, basename='member-Subscriptions')
 router.register('subscriptions', views.SubscriptionViewSet, basename='subscription')
 router.register('workout-schedules', views.WorkoutScheduleViewSet, basename='workout-schedule')
 router.register('payment', views.PaymentViewSet, basename='payment')
 router.register(r'reviews', views.ReviewViewSet, basename='review')
 router.register(r'change-requests', views.WorkoutScheduleChangeRequestViewSet, basename='change-request')
-
 
 
 urlpatterns = [

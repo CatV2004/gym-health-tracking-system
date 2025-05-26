@@ -57,7 +57,7 @@ export const respondToChangeRequest = async (requestId, response, token) => {
   try {
     const res = await axios.post(
       `${API_BASE}/change-requests/${requestId}/member_response/`,
-      { response }, // response: "ACCEPT" hoặc "REJECT"
+      { response }, // response: "ACCEPT" || "REJECT"
       {
         headers: {
           Authorization: `Bearer ${token}`,
