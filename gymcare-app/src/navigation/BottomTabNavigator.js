@@ -52,9 +52,9 @@ export default function BottomTabNavigator({ navigation }) {
         component={
           accessToken
             ? user?.role === 1
-              ? PTDashboardScreen // màn hình dashboard PT
-              : HomeScreen // màn hình thành viên (member)
-            : HomeScreen // chưa đăng nhập, vẫn là Home mặc định
+              ? PTDashboardScreen 
+              : HomeScreen 
+            : HomeScreen 
         }
       />
       {accessToken ? (

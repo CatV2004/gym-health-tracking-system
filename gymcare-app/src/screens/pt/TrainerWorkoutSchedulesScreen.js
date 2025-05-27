@@ -53,7 +53,7 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
   const [reason, setReason] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const token = useSelector((state) => state.auth.accessToken);
-  console.log("token:", token)
+  console.log("token:", token);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [scheduleToApprove, setScheduleToApprove] = useState(null);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -220,7 +220,6 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
               <Text style={styles.subscriptionTitle}>
                 Gói tập: {pack?.name || "Không xác định"}
               </Text>
-              <Text style={styles.memberName}>Hội viên: {sub.member_name}</Text>
             </View>
           </>
         )}

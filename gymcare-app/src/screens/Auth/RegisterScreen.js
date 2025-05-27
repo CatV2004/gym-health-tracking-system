@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   TextInput,
@@ -25,6 +25,12 @@ export default function RegisterScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      navigation.navigate("Auth", { screen: "Login" });
+    }
+  }, [user]);
 
   React.useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -59,7 +65,7 @@ export default function RegisterScreen({ navigation }) {
           last_name: lastName,
         })
       );
-      navigation.navigate("Auth", { screen: "Login" })
+      // navigation.navigate("Auth", { screen: "Login" });
     });
   };
 
@@ -137,9 +143,17 @@ export default function RegisterScreen({ navigation }) {
 
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>
-                  {error.message || "Đăng nhập thất bại"}
-                </Text>
+                {typeof error === "string" ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : (
+                  Object.entries(error).map(([field, messages]) =>
+                    messages.map((msg, idx) => (
+                      <Text key={`${field}-${idx}`} style={styles.errorText}>
+                        {msg}
+                      </Text>
+                    ))
+                  )
+                )}
               </View>
             )}
 

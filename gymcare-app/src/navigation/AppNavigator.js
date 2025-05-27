@@ -19,6 +19,7 @@ import SubscriptionListScreen from "../screens/member/subscription/SubscriptionL
 import BookSessionScreen from "../screens/member/subscription/schedule/BookSessionScreen";
 import MemberScheduleScreen from "../screens/member/subscription/schedule/MemberScheduleScreen";
 import TrainerWorkoutSchedulesScreen from "../screens/pt/TrainerWorkoutSchedulesScreen";
+import MySubscriptionDetail from "../screens/member/subscription/MySubscriptionDetail";
 
 const Stack = createNativeStackNavigator();
 
@@ -32,11 +33,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Auth" component={AuthStack} />
       <Stack.Screen name="ChatScreen" component={ChatScreen} />
       <Stack.Screen name="UserListScreen" component={UserListScreen} />
-
-      <Stack.Screen
-        name="PackagesOfCategory"
-        component={PackagesOfCategoryScreen}
-      />
+      <Stack.Screen name="PackagesOfCategory" component={PackagesOfCategoryScreen}/>
       <Stack.Screen name="PackageDetail" component={PackageDetailScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       {role === 2 && (
@@ -47,6 +44,7 @@ export default function AppNavigator() {
           <Stack.Screen name="VNPayPayment" component={VNPayPaymentScreen} />
           <Stack.Screen name="PaymentResult" component={PaymentResultScreen} />
           <Stack.Screen name="SubscriptionList"component={SubscriptionListScreen}/>
+          <Stack.Screen name="MySubscriptionDetail"component={MySubscriptionDetail}/>
           <Stack.Screen name="BookSession" component={BookSessionScreen} />
           <Stack.Screen name="MemberSchedule" component={MemberScheduleScreen} />
         </>

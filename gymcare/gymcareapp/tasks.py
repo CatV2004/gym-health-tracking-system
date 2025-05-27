@@ -61,3 +61,63 @@ def send_email_async(subject, message, recipient_email):
         print(f"Email sent to {recipient_email}")
     except Exception as e:
         print(f"Failed to send email to {recipient_email}: {str(e)}")
+
+
+@shared_task
+def notify_upcoming_workouts():
+    now = timezone.now()
+    start_time = now + timedelta(minutes=30)
+    end_time = now + timedelta(minutes=45)
+
+    schedules = WorkoutSchedule.objects.filter(
+        scheduled_at__range=(start_time, end_time),
+        status=0,
+        active=True
+    )
+
+    for schedule in schedules:
+        user = schedule.subscription.member.user
+        message = f"Bạn có buổi tập lúc {schedule.scheduled_at.strftime('%H:%M %d/%m/%Y')}."
+        Notification.objects.create(user=user, message=message)
+        send_mail(
+            "Nhắc nhở buổi tập",
+            message,
+            os.getenv("EMAIL_SEND"),
+            [user.email],
+            fail_silently=True,
+        )
+
+@shared_task
+def notify_expiring_subscriptions():
+    today = timezone.now().date()
+    target = today + timedelta(days=3)
+    subs = Subscription.objects.filter(
+        end_date__range=(today, target),
+        status=SubscriptionStatus.ACTIVE,
+    )
+    for sub in subs:
+        user = sub.member.user
+        message = f"Gói tập của bạn sẽ hết hạn vào ngày {sub.end_date.strftime('%d/%m/%Y')}."
+        Notification.objects.create(user=user, message=message)
+        send_mail(
+            "Gói tập sắp hết hạn",
+            message,
+            os.getenv("EMAIL_SEND"),
+            [user.email],
+            fail_silently=True,
+        )
+
+@shared_task
+def expire_ended_subscriptions():
+    today = timezone.now().date()
+    expired = Subscription.objects.filter(
+        end_date__lt=today,
+        status=SubscriptionStatus.ACTIVE,
+    )
+    for sub in expired:
+        sub.status = SubscriptionStatus.EXPIRED
+        sub.save()
+        Notification.objects.create(
+            user=sub.member.user,
+            message="Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục tập luyện.",
+        )

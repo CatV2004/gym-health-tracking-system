@@ -1,5 +1,5 @@
 from cloudinary.uploader import upload
-from rest_framework import serializers
+from rest_framework import serializers, validators
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField
 from rest_framework.serializers import ModelSerializer, Serializer
@@ -28,6 +28,15 @@ class UserSerializer(ModelSerializer):
             }
         }
 
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username đã được sử dụng.")
+        return value
+
+    def validate_password(self, value):
+        if len(value) < 6:
+            raise serializers.ValidationError("Mật khẩu phải có ít nhất 6 ký tự.")
+        return value
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -80,13 +89,6 @@ class UpdateUserSerializer(ModelSerializer):
     def get_avatar(self, obj):
         return obj.avatar_url
 
-
-# class TrainerSerializer(ModelSerializer):
-#     user = UserSerializer()
-#
-#     class Meta:
-#         model = Trainer
-#         fields = ["id", "user", "certification", "experience"]
 
 class TrainerSerializer(ModelSerializer):
     user = UserSerializer()
@@ -202,7 +204,6 @@ class TrainerRegisterSerializer(serializers.ModelSerializer):
         }
 
 
-
 class MemberSerializer(ModelSerializer):
     user = UserSerializer()
 
@@ -210,8 +211,30 @@ class MemberSerializer(ModelSerializer):
         model = Member
         fields = ["id", "user", "height", "weight", "goal", "birth_year", "gender"]
 
+
+    def validate_birth_year(self, value):
+        current_year = datetime.now().year
+        if value < 1900 or value > current_year:
+            raise serializers.ValidationError("Năm sinh không hợp lệ.")
+        return value
+
+    def validate(self, data):
+        if data.get("weight") and data.get("weight") <= 0:
+            raise serializers.ValidationError({"weight": "Cân nặng phải lớn hơn 0."})
+        if data.get("height") and data.get("height") <= 0:
+            raise serializers.ValidationError({"height": "Chiều cao phải lớn hơn 0."})
+        return data
+
     def create(self, validated_data):
         user_data = validated_data.pop('user')
+
+        required_user_fields = ["username", "password", "first_name", "last_name"]
+        missing_fields = [f for f in required_user_fields if not user_data.get(f)]
+        if missing_fields:
+            raise serializers.ValidationError({
+                "user": f"Các trường bắt buộc còn thiếu: {', '.join(missing_fields)}"
+            })
+
         user_data['role'] = Role.MEMBER.value
         avatar = user_data.pop('avatar', None)
         password = user_data.get('password')
@@ -244,6 +267,27 @@ class MemberHealthUpdateSerializer(serializers.ModelSerializer):
         model = Member
         fields = ['gender', 'birth_year', 'height', 'weight', 'goal']
 
+    def validate_birth_year(self, value):
+        current_year = datetime.now().year
+        if value < 1900 or value > current_year:
+            raise serializers.ValidationError(f"Năm sinh phải trong khoảng 1900 đến {current_year}.")
+        return value
+
+    def validate_height(self, value):
+        if value <= 0 or value > 300:
+            raise serializers.ValidationError("Chiều cao phải lớn hơn 0 và nhỏ hơn 300 cm.")
+        return value
+
+    def validate_weight(self, value):
+        if value <= 0 or value > 500:
+            raise serializers.ValidationError("Cân nặng phải lớn hơn 0 và nhỏ hơn 500 kg.")
+        return value
+
+    def validate_goal(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Mục tiêu không được để trống.")
+        return value
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = CharField(write_only=True, required=True)
@@ -256,11 +300,22 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
-class MemberRegisterSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
+class MemberRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={'input_type': 'password'}
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'first_name', 'last_name']
+        extra_kwargs = {
+            'username': {
+                'validators': [
+                    validators.UniqueValidator(queryset=User.objects.all(), message="Tên đăng nập đã được sử dụng.")]
+            }
+        }
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -427,7 +482,6 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
         return subscription
 
 
-
 class WorkoutScheduleSerializer(serializers.ModelSerializer):
     subscription = serializers.PrimaryKeyRelatedField(queryset=Subscription.objects.all())
     training_type = serializers.ChoiceField(choices=TrainingType.choices())
@@ -440,6 +494,11 @@ class WorkoutScheduleSerializer(serializers.ModelSerializer):
         fields = ["id", "subscription", "training_type", "scheduled_at", "duration", "status", "packageId"]
         read_only_fields = ["id", "packageId"]
 
+    def validate_scheduled_at(self, value):
+        if value < timezone.now():
+            raise serializers.ValidationError("Thời gian tập phải nằm trong tương lai.")
+        return value
+
     def validate(self, attrs):
         subscription = attrs.get("subscription", getattr(self.instance, "subscription", None))
         scheduled_at = attrs.get("scheduled_at", getattr(self.instance, "scheduled_at", None))
@@ -448,7 +507,6 @@ class WorkoutScheduleSerializer(serializers.ModelSerializer):
         if scheduled_at and duration:
             scheduled_end = scheduled_at + timezone.timedelta(minutes=duration)
 
-            # Kiểm tra xem có lịch trùng không
             overlapping = WorkoutSchedule.objects.filter(
                 subscription=subscription,
                 status__in=[
@@ -675,7 +733,6 @@ class PTDashboardSerializer(serializers.Serializer):
             Q(goal__isnull=False) | Q(weight__gte=100)
         ).distinct()[:5]
         return PriorityMemberSerializer(priority, many=True).data
-
 
 
 class ReviewSerializer(serializers.ModelSerializer):

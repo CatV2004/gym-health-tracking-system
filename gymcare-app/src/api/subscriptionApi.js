@@ -12,7 +12,7 @@ export const createSubscription = async (data, token) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Error creating subscription:", error);
+    // console.error("Error creating subscription:", error);
     throw error;
   }
 

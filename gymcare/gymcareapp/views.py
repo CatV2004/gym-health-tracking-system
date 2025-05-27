@@ -22,10 +22,11 @@ from django.views.decorators.csrf import csrf_exempt
 from . import serializers
 from .models import *
 from .pems import *
+from .permissions import *
 import json
 import uuid
 from .utils.vnpay_helper import VNPay, VNPayDatabase, get_client_ip
-from .serializers import *
+from .serializers import UserSerializer, CurrentUserSerializer,PaymentCreateSerializer,PaymentSerializer,SubscriptionSerializer,SubscriptionCreateSerializer,PaymentRequestSerializer,WorkoutProgressSerializer,PTDashboardSerializer,ReviewSerializer,WorkoutScheduleSerializer,MemberResponseToChangeRequestSerializer,ReviewDisplaySerializer,MemberSerializer,MemberHealthUpdateSerializer,VNPayCreateSerializer,PriorityMemberSerializer,PaymentResponseSerializer,WorkoutScheduleChangeRequestSerializer,PaymentForm,CategoryPackageSerializer,ChangePasswordSerializer,MemberRegisterSerializer,TrainingPackageDetailSerializer,TrainerSerializer,TrainerRegisterSerializer,UpdateUserSerializer,TrainingPackageSerializer
 from django.db import transaction
 from .utils.zalopay_helper import ZaloPayHelper
 import requests
@@ -34,7 +35,6 @@ import hmac
 import time
 from django.conf import settings
 from datetime import datetime, timedelta
-
 
 
 class ZaloPayOrderView(APIView):
@@ -93,13 +93,22 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
             return serializers.CurrentUserSerializer
         return serializers.UserSerializer
 
+    # def get_permissions(self):
+    #     if self.request.method == 'GET' and self.action == 'get_all_users' and self.action == 'get_user_by_id':
+    #         return [IsAuthenticated ()]
+    #     elif self.request.method in ['PATCH', 'PUT'] or self.action == 'get_current_user':
+    #         return [OwnerUserPermission()]
+    #     else:
+    #         return []
+
     def get_permissions(self):
-        if self.request.method == 'GET' and self.action == 'get_all_users' and self.action == 'get_user_by_id':
-            return [IsAuthenticated ()]
-        elif self.request.method in ['PATCH', 'PUT'] or self.action == 'get_current_user':
-            return [OwnerUserPermission()]
-        else:
-            return []
+        if self.action in ['get_current_user', 'change_password', 'update_info']:
+            return [GetCurrentUserPermission()]
+        elif self.action in ['get_all_users', 'get_user_by_id']:
+            return [permissions.AllowAny()]
+        elif self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.AllowAny()]
 
     class CustomPagination(PageNumberPagination):
         page_size = 10
@@ -187,11 +196,23 @@ class TrainerViewSet(mixins.CreateModelMixin,
         return TrainerSerializer
 
     def get_permissions(self):
-        if self.action == ['create','destroy','workout_schedules']:
-            return [AdminPermission()]
-        elif self.request.method in ['GET']:
+        if self.action == 'create':
+            return [IsAdmin()]
+        elif self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        return [IsAuthenticated(), IsAdminOrSelfTrainer()]
+        elif self.action == 'destroy':
+            return [IsAdmin()]
+        elif self.action in ['workout_schedules', 'my_members', 'my_member_detail',
+                             'record_progress', 'get_progress_history', 'today_schedules']:
+            return [IsTrainer()]
+        return [IsAdmin()]
+
+    # def get_permissions(self):
+    #     if self.action == ['create','destroy','workout_schedules']:
+    #         return [AdminPermission()]
+    #     elif self.request.method in ['GET']:
+    #         return [permissions.AllowAny()]
+    #     return [IsAuthenticated(), IsAdminOrSelfTrainer()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -222,6 +243,36 @@ class TrainerViewSet(mixins.CreateModelMixin,
 
         return Response({
             "message": "Danh sách lịch tập của hội viên trong gói bạn phụ trách.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='today-schedules')
+    def today_schedules(self, request):
+        trainer = getattr(request.user, 'trainer_profile', None)
+        if not trainer:
+            return Response({"detail": "Tài khoản không phải trainer."}, status=status.HTTP_403_FORBIDDEN)
+
+        today = now().date()
+        start_of_day = today
+        end_of_day = today + timedelta(days=1)
+
+        schedules = WorkoutSchedule.objects.filter(
+            subscription__training_package__pt=trainer,
+            training_type=TrainingType.PERSONAL_TRAINER.value,
+            scheduled_at__date=today
+        ).select_related(
+            'subscription__member__user',
+            'subscription__training_package'
+        ).order_by('scheduled_at')
+
+        page = self.paginate_queryset(schedules)
+        serializer = WorkoutScheduleSerializer(page if page is not None else schedules, many=True)
+
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+
+        return Response({
+            "message": "Danh sách lịch tập hôm nay của bạn.",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -347,17 +398,37 @@ class MemberViewSet(mixins.CreateModelMixin,
             return MemberHealthUpdateSerializer
         return MemberSerializer
 
+    # def get_permissions(self):
+    #     if self.action == 'create':
+    #         return [permissions.AllowAny()]
+    #     elif self.action in ['destroy', 'update_health_info']:
+    #         return [permissions.IsAuthenticated()]
+    #     return [permissions.AllowAny()]
+
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in ['create', 'retrieve']:
             return [permissions.AllowAny()]
-        elif self.action in ['destroy', 'update_health_info']:
-            return [permissions.IsAuthenticated()]
-        return [permissions.AllowAny()]
+        elif self.action in ['destroy']:
+            return [IsAdmin()]
+        elif self.action in ['workout_schedules', 'my_members', 'my_member_detail',
+                             'record_progress', 'get_progress_history']:
+            return [IsTrainer()]
+
+        return [permissions.IsAuthenticated()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.soft_delete()
         return Response({"message": "Member deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=False, methods=["patch"], url_path="health")
     def update_health_info(self, request):
@@ -433,6 +504,7 @@ class MemberViewSet(mixins.CreateModelMixin,
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CategoryPackage.objects.all()
 
@@ -469,8 +541,8 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
     parser_classes = [JSONParser, MultiPartParser]
 
     def get_permissions(self):
-        if self.action in ['subscribe']:
-            return [MemberPermission()]
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdmin()]
         return [permissions.AllowAny()]
 
     # def get_serializer_class(self):
@@ -496,16 +568,17 @@ class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, 
 #             pt__user=self.request.user,
 #             active=True
 #         ).annotate(member_count=Count('subscriptions')).select_related('pt__user')
-#
+
 
 class MemberSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SubscriptionSerializer
-    permission_classes = [MemberPermission]
+    permission_classes = [IsMember]
 
     def get_queryset(self):
         return Subscription.objects.filter(
             member__user=self.request.user,
-            active=True
+            active=True,
+            status=1
         ).select_related('training_package', 'training_package__pt')
 
     @action(detail=False, methods=['get'], url_path='expired')
@@ -531,11 +604,10 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             return SubscriptionSerializer
 
     def get_permissions(self):
-        if self.action in ['create']:
-            return [MemberPermission()]
-        if self.action == 'retrieve':
-            return [permissions.IsAuthenticated()]
-        return []
+        if self.action == 'create':
+            return [MemberSubscriptionPermission()]
+        else:
+            return []
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -556,59 +628,125 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
 
-class WorkoutScheduleViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+# class WorkoutScheduleViewSet(viewsets.ViewSet):
+#     permission_classes = [IsAuthenticated]
+#
+#     def get_queryset(self):
+#         user = self.request.user
+#         queryset = WorkoutSchedule.objects.all()
+#         if hasattr(user, 'member_profile'):
+#             queryset = queryset.filter(subscription__member=user.member_profile)
+#         # elif hasattr(user, 'trainer_profile'):
+#         #     queryset = queryset.filter(subscription__training_package__pt=user.trainer_profile)
+#
+#         return  queryset
+#
+#     def list(self, request):
+#         queryset = self.get_queryset().order_by('-scheduled_at')
+#         serializer = WorkoutScheduleSerializer(queryset, many=True)
+#         return Response(serializer.data)
+#
+#     def retrieve(self, request, pk=None):
+#         instance = get_object_or_404(self.get_queryset(), pk=pk)
+#         serializer = WorkoutScheduleSerializer(instance)
+#         return Response(serializer.data)
+#
+#     def create(self, request):
+#         serializer = WorkoutScheduleSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         instance = serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#
+#     def update(self, request, pk=None):
+#         instance = get_object_or_404(WorkoutSchedule, pk=pk)
+#         serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=False)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data)
+#
+#     def partial_update(self, request, pk=None):
+#         instance = get_object_or_404(WorkoutSchedule, pk=pk)
+#         if hasattr(request.user, 'trainer_profile'):
+#             if set(request.data.keys()) != {'status'} or request.data['status'] != WorkoutSchedule.COMPLETED:
+#                 return Response(
+#                     {"detail": "Trainer chỉ được phép cập nhật trạng thái thành COMPLETED"},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+#
+#         serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=True)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data)
+#
+#     @action(detail=True, methods=['get'], url_path='change-requests')
+#     def change_requests(self, request, pk=None):
+#         schedule = get_object_or_404(self.get_queryset(), pk=pk)
+#
+#         requests = WorkoutScheduleChangeRequest.objects.filter(
+#             schedule=schedule
+#         ).order_by('-created_date')
+#
+#         serializer = WorkoutScheduleChangeRequestSerializer(requests, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#
+#     # @action(detail=True, methods=['patch'], url_path='trainer-complete')
+#     # def trainer_complete_session(self, request, pk=None):
+#     #     instance = get_object_or_404(self.get_queryset(), pk=pk)
+#     #
+#     #     serializer = WorkoutScheduleSerializer(
+#     #         instance,
+#     #         data={'status': WorkoutScheduleStatus.COMPLETED.value},
+#     #         partial=True
+#     #     )
+#     #     serializer.is_valid(raise_exception=True)
+#     #     serializer.save()
+#     #     return Response(serializer.data)
+
+class WorkoutScheduleViewSet(viewsets.ModelViewSet):
+    queryset = WorkoutSchedule.objects.all()
+    serializer_class = WorkoutScheduleSerializer
+    # permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'create']:
+            return [MemberSchedulePermission()]
+        elif self.action in ['partial_update', 'trainer_approve_session']:
+            return [TrainerScheduleChangePermission()]
+        elif self.action == 'change_requests':
+            return [MemberSchedulePermission()]
+        else:
+            return [IsAdmin()]
 
     def get_queryset(self):
         user = self.request.user
-        queryset = WorkoutSchedule.objects.all()
+        queryset = super().get_queryset()
         if hasattr(user, 'member_profile'):
-            queryset = queryset.filter(subscription__member=user.member_profile)
-        elif hasattr(user, 'trainer_profile'):
-            queryset = queryset.filter(subscription__training_package__pt=user.trainer_profile)
-
-        return  queryset
-
-    def list(self, request):
-        queryset = self.get_queryset().order_by('-scheduled_at')
-        serializer = WorkoutScheduleSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        instance = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = WorkoutScheduleSerializer(instance)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = WorkoutScheduleSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def update(self, request, pk=None):
-        instance = get_object_or_404(WorkoutSchedule, pk=pk)
-        serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=False)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+            queryset = queryset.filter(
+                subscription__member=user.member_profile,
+                subscription__active=True,
+                subscription__status=1
+            )
+        return queryset.order_by('-scheduled_at')
 
     def partial_update(self, request, pk=None):
-        instance = get_object_or_404(WorkoutSchedule, pk=pk)
+        instance = self.get_object()
+
         if hasattr(request.user, 'trainer_profile'):
-            if set(request.data.keys()) != {'status'} or request.data['status'] != WorkoutSchedule.COMPLETED:
+            if set(request.data.keys()) != {'status'} or request.data[
+                'status'] != WorkoutScheduleStatus.COMPLETED.value:
                 return Response(
                     {"detail": "Trainer chỉ được phép cập nhật trạng thái thành COMPLETED"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        serializer = WorkoutScheduleSerializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='change-requests')
     def change_requests(self, request, pk=None):
-        schedule = get_object_or_404(self.get_queryset(), pk=pk)
+        schedule = self.get_object()
 
         requests = WorkoutScheduleChangeRequest.objects.filter(
             schedule=schedule
@@ -616,19 +754,6 @@ class WorkoutScheduleViewSet(viewsets.ViewSet):
 
         serializer = WorkoutScheduleChangeRequestSerializer(requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # @action(detail=True, methods=['patch'], url_path='trainer-complete')
-    # def trainer_complete_session(self, request, pk=None):
-    #     instance = get_object_or_404(self.get_queryset(), pk=pk)
-    #
-    #     serializer = WorkoutScheduleSerializer(
-    #         instance,
-    #         data={'status': WorkoutScheduleStatus.COMPLETED.value},
-    #         partial=True
-    #     )
-    #     serializer.is_valid(raise_exception=True)
-    #     serializer.save()
-    #     return Response(serializer.data)
 
     @action(detail=True, methods=['patch'], url_path='trainer-approve')
     def trainer_approve_session(self, request, pk=None):
@@ -649,25 +774,47 @@ class WorkoutScheduleViewSet(viewsets.ViewSet):
         serializer.save()
         return Response(serializer.data)
 
+    # @action(detail=True, methods=['patch'], url_path='trainer-complete')
+    # def trainer_complete_session(self, request, pk=None):
+    #     instance = get_object_or_404(self.get_queryset(), pk=pk)
+    #
+    #     serializer = WorkoutScheduleSerializer(
+    #         instance,
+    #         data={'status': WorkoutScheduleStatus.COMPLETED.value},
+    #         partial=True
+    #     )
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #     return Response(serializer.data)
+
 
 class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
     queryset = WorkoutScheduleChangeRequest.objects.all()
     serializer_class = WorkoutScheduleChangeRequestSerializer
-    permission_classes = [IsTrainer, IsOwnerOrAdmin]
+    # permission_classes = [IsTrainer, IsOwnerOrAdmin]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [MemberSchedulePermission()]
+        elif self.action in ['create', 'destroy', 'cancel']:
+            return [TrainerScheduleChangePermission()]
+        elif self.action == 'member_response':
+            return [MemberSchedulePermission()]
+        elif self.action == 'member_requests':
+            return [MemberSchedulePermission()]
+        else:
+            return [IsAdmin()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # For trainers, only show their own requests
         if hasattr(self.request.user, 'trainer_profile'):
             queryset = queryset.filter(trainer=self.request.user.trainer_profile)
 
-        # Filter by schedule if provided
         schedule_id = self.request.query_params.get('schedule_id')
         if schedule_id:
             queryset = queryset.filter(schedule_id=schedule_id)
 
-        # Filter by status if provided
         status = self.request.query_params.get('status')
         if status:
             queryset = queryset.filter(status=status)
@@ -675,11 +822,9 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_date')
 
     def perform_destroy(self, instance):
-        # Only allow deletion if status is PENDING
         if instance.status != ChangeRequestStatus.PENDING.value:
             raise serializers.ValidationError({"detail": "Only pending change requests can be deleted."})
 
-        # Reset schedule status if this was the only pending change request
         schedule = instance.schedule
         if not WorkoutScheduleChangeRequest.objects.filter(
                 schedule=schedule,
@@ -694,7 +839,6 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         change_request = self.get_object()
 
-        # Only allow cancellation if status is PENDING
         if change_request.status != ChangeRequestStatus.PENDING.value:
             return Response(
                 {"detail": "Only pending change requests can be cancelled."},
@@ -704,7 +848,6 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
         change_request.status = ChangeRequestStatus.REJECTED.value
         change_request.save()
 
-        # Reset schedule status if this was the only pending change request
         schedule = change_request.schedule
         if not WorkoutScheduleChangeRequest.objects.filter(
                 schedule=schedule,
@@ -737,17 +880,14 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
             )
 
         if response == 'ACCEPT':
-            # Cập nhật lịch tập
             schedule = change_request.schedule
             schedule.scheduled_at = change_request.proposed_time
             schedule.status = WorkoutScheduleStatus.CHANGED.value
             schedule.save()
 
-            # Cập nhật trạng thái yêu cầu
             change_request.status = ChangeRequestStatus.ACCEPTED.value
             change_request.save()
 
-            # Từ chối các yêu cầu khác cho cùng lịch tập
             WorkoutScheduleChangeRequest.objects.filter(
                 schedule=schedule,
                 status=ChangeRequestStatus.PENDING.value
@@ -760,13 +900,11 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK
             )
         else:
-            # Từ chối yêu cầu
             change_request.status = ChangeRequestStatus.REJECTED.value
             if reason:
                 change_request.reason = f"Member rejection reason: {reason}"
             change_request.save()
 
-            # Khôi phục trạng thái lịch tập
             schedule = change_request.schedule
             if not WorkoutScheduleChangeRequest.objects.filter(
                     schedule=schedule,
@@ -853,13 +991,23 @@ class PTDashboardView(APIView):
 
 class ReviewViewSet(viewsets.ViewSet, generics.CreateAPIView):
     pagination_class = Pagination
+    # permission_classes = [ReviewPermission]
 
     def get_permissions(self):
-        if self.request.method == 'POST':
+        if self.action in ['list', 'list_gym_feedbacks', 'get_replies']:
+            return [permissions.AllowAny()]
+        elif self.action == 'destroy':
+            return [IsOwnerOrAdmin()]
+        elif self.action == 'create':
             return [IsMember()]
-        elif self.request.method == 'DELETE':
-            return [IsMember(), IsReviewOwner()]
-        return []
+        return super().get_permissions()
+
+    # def get_permissions(self):
+    #     if self.request.method == 'POST':
+    #         return [IsMember()]
+    #     elif self.request.method == 'DELETE':
+    #         return [IsMember(), IsReviewOwner()]
+    #     return []
 
     def get_serializer_class(self):
         if self.request.method in ['POST']:
