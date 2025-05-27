@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
-import { createWorkoutSchedule } from '../../../../api/schedule/workoutScheduleService';
-import Button from '../../../../components/buttons/Button';
-import styles from './BookSessionScreen.styles';
-import colors from '../../../../constants/colors';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  TextInput,
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { createWorkoutSchedule } from "../../../../api/schedule/workoutScheduleService";
+import Button from "../../../../components/buttons/Button";
+import styles from "./BookSessionScreen.styles";
+import colors from "../../../../constants/colors";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 const BookSessionScreen = () => {
   const route = useRoute();
@@ -19,7 +27,7 @@ const BookSessionScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [time, setTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [trainingType, setTrainingType] = useState(1); // Default to 1
   const [duration, setDuration] = useState(60); // Default to 60 minutes
   const [loading, setLoading] = useState(false);
@@ -38,7 +46,7 @@ const BookSessionScreen = () => {
 
   const handleSubmit = async () => {
     if (!date || !time) {
-      Alert.alert('Lỗi', 'Vui lòng chọn ngày và giờ tập');
+      Alert.alert("Lỗi", "Vui lòng chọn ngày và giờ tập");
       return;
     }
 
@@ -51,37 +59,33 @@ const BookSessionScreen = () => {
 
     // Check if selected time is in the future
     if (scheduleDateTime <= new Date()) {
-      Alert.alert('Lỗi', 'Vui lòng chọn thời gian trong tương lai');
+      Alert.alert("Lỗi", "Vui lòng chọn thời gian trong tương lai");
       return;
     }
 
     const workoutData = {
-      subscription: packageId, // Changed from training_package to subscription
-      training_type: trainingType, // Added training_type
-      scheduled_at: scheduleDateTime.toISOString(), // Changed from scheduled_date to scheduled_at
-      duration: duration, // Added duration
+      subscription: packageId, 
+      training_type: trainingType, 
+      scheduled_at: scheduleDateTime.toISOString(), 
+      duration: duration, 
     };
 
     try {
       setLoading(true);
       const response = await createWorkoutSchedule(workoutData, token);
-      Alert.alert(
-        'Thành công',
-        'Đã đặt lịch tập thành công',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.goBack() 
-          }
-        ]
-      );
+      Alert.alert("Thành công", "Đã đặt lịch tập thành công", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
     } catch (error) {
-      console.error('Booking error:', error);
-      let errorMessage = 'Đặt lịch tập thất bại. Vui lòng thử lại';
+      console.error("Booking error:", error);
+      let errorMessage = "Đặt lịch tập thất bại. Vui lòng thử lại";
       if (error.response?.data) {
         errorMessage = error.response.data.message || errorMessage;
       }
-      Alert.alert('Lỗi', errorMessage);
+      Alert.alert("Lỗi", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -93,12 +97,12 @@ const BookSessionScreen = () => {
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Ngày tập</Text>
-        <TouchableOpacity 
-          style={styles.input} 
+        <TouchableOpacity
+          style={styles.input}
           onPress={() => setShowDatePicker(true)}
           activeOpacity={0.7}
         >
-          <Text>{date.toLocaleDateString('vi-VN')}</Text>
+          <Text>{date.toLocaleDateString("vi-VN")}</Text>
           <Icon name="calendar-today" size={20} color={colors.primary} />
         </TouchableOpacity>
         {showDatePicker && (
@@ -114,12 +118,17 @@ const BookSessionScreen = () => {
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Giờ tập</Text>
-        <TouchableOpacity 
-          style={styles.input} 
+        <TouchableOpacity
+          style={styles.input}
           onPress={() => setShowTimePicker(true)}
           activeOpacity={0.7}
         >
-          <Text>{time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
+          <Text>
+            {time.toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
           <Icon name="access-time" size={20} color={colors.primary} />
         </TouchableOpacity>
         {showTimePicker && (
@@ -135,19 +144,37 @@ const BookSessionScreen = () => {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Loại hình tập</Text>
         <View style={styles.radioGroup}>
-          <TouchableOpacity 
-            style={[styles.radioButton, trainingType === 0 && styles.radioButtonSelected]}
+          <TouchableOpacity
+            style={[
+              styles.radioButton,
+              trainingType === 0 && styles.radioButtonSelected,
+            ]}
             onPress={() => setTrainingType(0)}
           >
-            <Text style={trainingType === 0 ? styles.radioButtonSelectedText : styles.radioButtonText}>
+            <Text
+              style={
+                trainingType === 0
+                  ? styles.radioButtonSelectedText
+                  : styles.radioButtonText
+              }
+            >
               Tự tập
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.radioButton, trainingType === 1 && styles.radioButtonSelected]}
+          <TouchableOpacity
+            style={[
+              styles.radioButton,
+              trainingType === 1 && styles.radioButtonSelected,
+            ]}
             onPress={() => setTrainingType(1)}
           >
-            <Text style={trainingType === 1 ? styles.radioButtonSelectedText : styles.radioButtonText}>
+            <Text
+              style={
+                trainingType === 1
+                  ? styles.radioButtonSelectedText
+                  : styles.radioButtonText
+              }
+            >
               Tập với PT
             </Text>
           </TouchableOpacity>

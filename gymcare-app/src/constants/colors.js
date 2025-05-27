@@ -7,7 +7,6 @@ const colors = {
   // Backgrounds
   background: "#F9F9F9", // Màu nền chung
   cardBackground: "#FFFFFF", // Background của các card
-  white: "#FFFFFF",
 
   // Text colors
   textPrimary: "#333333",
@@ -17,6 +16,7 @@ const colors = {
   gray: "#666666",    
   lightGray: "#E0E0E0",
   white: '#FFFFFF',
+  black: "#000000",
   darkGreen: "#006400",
 
   // Button colors
@@ -31,6 +31,7 @@ const colors = {
   warning: "#FFC107", // vàng cảnh báo
   error: "#F44336", // đỏ lỗi
   info: "#2196F3", // xanh thông tin
+
 
   // Others
   disabled: "#BDBDBD",

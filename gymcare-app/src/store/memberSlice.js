@@ -1,6 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { getHealthInfo, updateHealthInfo } from "../api/memberApi";
-import { getMemberSubscriptions, getMemberSubscriptionsExpired } from "../api/subscriptionApi";
+import {
+  getMemberSubscriptions,
+  getMemberSubscriptionsExpired,
+} from "../api/subscriptionApi";
 
 export const fetchMemberHealth = createAsyncThunk(
   "member/fetchHealth",
@@ -64,7 +67,6 @@ export const updateMemberHealth = createAsyncThunk(
   }
 );
 
-
 const memberSlice = createSlice({
   name: "member",
   initialState: {
@@ -85,7 +87,7 @@ const memberSlice = createSlice({
       })
       .addCase(fetchMemberHealth.fulfilled, (state, action) => {
         state.loading = false;
-        state.health = action.payload; 
+        state.health = action.payload;
       })
       .addCase(fetchMemberHealth.rejected, (state, action) => {
         state.loading = false;
@@ -103,7 +105,12 @@ const memberSlice = createSlice({
       })
       .addCase(updateMemberHealth.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        if (typeof action.payload === "object" && action.payload !== null) {
+          const errorMessages = Object.values(action.payload).flat().join("\n");
+          state.error = errorMessages;
+        } else {
+          state.error = action.payload || "Cập nhật thất bại";
+        }
       })
       .addCase(fetchMemberSubscriptions.pending, (state) => {
         state.loading = true;
