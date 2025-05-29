@@ -83,6 +83,14 @@ class Trainer(BaseModel):
         if self.experience is not None and self.experience < 0:
             raise ValidationError({"experience": "Experience cannot be negative."})
 
+    def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            self.training_packages.update(pt=None)
+            self.progresses.update(recorded_by=None)
+            self.change_requests.update(trainer=None)
+
+            super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"PT: {self.user.username}"
 

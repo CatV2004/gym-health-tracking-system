@@ -281,7 +281,9 @@ LOGGING = {
             'propagate': False,
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }
 
-CLIENT_ID="vPKe8Hr5r5nXV0cw7FdmUBiRdoC4EXB449hyXvow"
-CLIENT_SECRET="kiVZzuKMmgMzMJldc9x07MSmvpIdCsOvkKHL608ALZQxqXMwI1681uiSbckUKtiiCzwu1aglQvFILY71eGd84TeGT81ETFlRL1TPqXwG9ZXn62PIIkJYvk4WM2EkF3vz"

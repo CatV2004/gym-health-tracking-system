@@ -12,8 +12,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django import forms
 from datetime import datetime
-
-
+import re
 
 
 class UserSerializer(ModelSerializer):
@@ -70,6 +69,20 @@ class UpdateUserSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ["first_name", "last_name", "avatar", "phone", "email"]
+
+    def validate(self, attrs):
+        user = self.instance
+        phone = attrs.get("phone")
+        email = attrs.get("email")
+
+        if email and User.objects.exclude(id=user.id).filter(email=email).exists():
+            raise serializers.ValidationError({"email": "Email đã được sử dụng."})
+
+        if phone:
+            if not re.match(r"^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$", phone):
+                raise serializers.ValidationError({"phone": "Số điện thoại không hợp lệ."})
+
+        return attrs
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -150,6 +163,38 @@ class TrainerRegisterSerializer(serializers.ModelSerializer):
             'certification', 'experience'
         ]
 
+    def validate(self, data):
+        user_data = data.get('user', {})
+        username = user_data.get('username')
+        email = user_data.get('email')
+        phone = user_data.get('phone')
+
+        if username and User.objects.filter(username=username).exists():
+            raise serializers.ValidationError({"username": "Tên đăng nhập đã được sử dụng."})
+
+        if email and User.objects.filter(email=email).exists():
+            raise serializers.ValidationError({"email": "Email đã được đăng ký."})
+
+        if phone and User.objects.filter(phone=phone).exists():
+            raise serializers.ValidationError({"phone": "Số điện thoại đã được sử dụng."})
+
+        if phone and not re.match(r"^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$", phone):
+            raise serializers.ValidationError({"phone": "Số điện thoại không hợp lệ."})
+
+        return data
+
+    def validate_certification(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Chứng chỉ không được để trống.")
+        return value
+
+    def validate_experience(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Kinh nghiệm không thể âm.")
+        if value > 50:
+            raise serializers.ValidationError("Kinh nghiệm không hợp lệ (quá 50 năm).")
+        return value
+
     def create(self, validated_data):
         user_data = validated_data.pop('user')
         user_data['role'] = Role.TRAINER.value
@@ -158,14 +203,12 @@ class TrainerRegisterSerializer(serializers.ModelSerializer):
 
         if avatar:
             try:
-                result = upload(avatar, folder="gymcare")
+                result = upload(avatar, folder="gymcare/avatar/trainer")
                 user_data['avatar'] = result.get('secure_url')
             except Exception as e:
                 raise serializers.ValidationError({"avatar": f"Lỗi upload: {str(e)}"})
 
-        user = User(
-            **user_data
-        )
+        user = User(**user_data)
         user.set_password(password)
         user.save()
 
@@ -241,7 +284,7 @@ class MemberSerializer(ModelSerializer):
 
         if avatar:
             try:
-                avatar_result = upload(avatar, folder="gymcare")
+                avatar_result = upload(avatar, folder="gymcare/member/avatar")
                 user_data['avatar'] = avatar_result.get('secure_url')
             except Exception as e:
                 raise ValidationError({"avatar": f"Lỗi đăng tải avatar: {str(e)}"})

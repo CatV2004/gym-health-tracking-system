@@ -1,7 +1,8 @@
 import json
+from django.urls import reverse
 from collections import Counter
 from datetime import timedelta
-
+from django.db import transaction
 from django.contrib import admin
 from django.contrib.auth.forms import UserChangeForm
 from django.core.exceptions import ValidationError
@@ -16,11 +17,13 @@ from django.utils.safestring import mark_safe
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.utils.timezone import localtime
 from django_flatpickr.widgets import DateTimePickerInput
+from gymcareapp.tasks import send_email_async
+from .forms import TrainerAdminForm
 from .models import *
 from django.urls import  path
-
 from .serializers import TrainerRegisterSerializer
-
+from django.core.cache import cache
+cache.clear()
 
 class MyAdminSite(admin.AdminSite):
     site_header = 'Gym management system and health monitoring'
@@ -264,10 +267,26 @@ my_admin_site = MyAdminSite(name='myadmin')
 
 
 class BaseAdmin(admin.ModelAdmin):
+    list_per_page = 20
     list_display = ('id', 'created_date', 'updated_date', 'active')
     list_filter = ('active', 'created_date')
     search_fields = ('id',)
     ordering = ['-id']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(deleted_date__isnull=True)
+
+    def delete_model(self, request, obj):
+        obj.soft_delete()
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    def has_delete_permission(self, request, obj=None):
+        return True
 
 class UserAdminForm(forms.ModelForm):
     password = forms.CharField(
@@ -319,63 +338,102 @@ class UserAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-# class TrainerAdminForm(forms.ModelForm):
-#     class Meta:
-#         model = Trainer
-#         fields = '__all__'
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         if self.instance and hasattr(self.instance, 'user') and self.instance.user:
-#             self.initial['username'] = self.instance.user.username
-#             self.initial['first_name'] = self.instance.user.first_name
-#             self.initial['last_name'] = self.instance.user.last_name
-#             self.initial['email'] = self.instance.user.email
-#             self.initial['phone'] = self.instance.user.phone
-#             self.initial['avatar'] = self.instance.user.avatar
-#
-#     def save(self, commit=True):
-#         trainer = super().save(commit=False)
-#         user_data = {
-#             'username': self.cleaned_data['username'],
-#             'first_name': self.cleaned_data['first_name'],
-#             'last_name': self.cleaned_data['last_name'],
-#             'email': self.cleaned_data['email'],
-#             'phone': self.cleaned_data['phone'],
-#             'avatar': self.cleaned_data['avatar'],
-#         }
-#         # Kiểm tra nếu 'username' bị thiếu
-#         if not user_data['username']:
-#             raise forms.ValidationError('Username is required.')
-#
-#         serializer = TrainerRegisterSerializer(data={
-#             'user': user_data,
-#             'certification': self.cleaned_data['certification'],
-#             'experience': self.cleaned_data['experience'],
-#         })
-#         if serializer.is_valid():
-#             serializer.save()
-#             if commit:
-#                 trainer.save()
-#         else:
-#             raise forms.ValidationError(serializer.errors)
-#         return trainer
-
-class TrainerAdmin(BaseAdmin):
-    # form = TrainerAdminForm
-    list_display = ('id', 'user', 'experience')
-    search_fields = ('user__username', 'user__email')
-    list_filter = ('experience',)
-    ordering = ('-experience',)
-    autocomplete_fields = ('user',)
+@admin.register(Trainer)
+class TrainerAdmin(admin.ModelAdmin):
+    form = TrainerAdminForm
+    list_display = ('id', 'get_username', 'get_email', 'experience', 'created_date')
+    search_fields = ('user__username', 'user__email', 'user__first_name', 'user__last_name')
+    list_filter = ('experience', 'user__role', 'created_date')
+    ordering = ('-created_date',)
     fieldsets = (
-        ("Basic information:", {
-            "fields": ('user', 'experience')
+        ("Thông tin đăng nhập", {
+            'fields': ('username', 'email', 'phone')
         }),
-        ("Certificate:", {
-            "fields": ('certification',),
+        ("Thông tin cá nhân", {
+            'fields': ('first_name', 'last_name', 'avatar')
+        }),
+        ("Thông tin huấn luyện viên", {
+            'fields': ('certification', 'experience')
         }),
     )
+
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'first_name', 'last_name',
+                      'email', 'phone', 'avatar', 'certification', 'experience'),
+        }),
+    )
+
+    def get_username(self, obj):
+        return obj.user.username
+    get_username.short_description = 'Username'
+    get_username.admin_order_field = 'user__username'
+
+    def get_email(self, obj):
+        return obj.user.email
+    get_email.short_description = 'Email'
+    get_email.admin_order_field = 'user__email'
+
+    def get_form(self, request, obj=None, **kwargs):
+        if obj is None:  # Trường hợp thêm mới
+            kwargs['fields'] = ['username', 'first_name', 'last_name',
+                              'email', 'phone', 'avatar', 'certification', 'experience']
+        else:  # Trường hợp chỉnh sửa
+            kwargs['fields'] = ['first_name', 'last_name', 'email', 'phone',
+                              'avatar', 'certification', 'experience']
+        return super().get_form(request, obj, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        # Gửi email sau khi trainer và user đã được lưu thành công
+        if not change:  # Chỉ gửi khi thêm mới
+            user = obj.user
+            password = "pt@123"  # Hoặc lấy từ nơi bạn đã sinh ra
+            transaction.on_commit(lambda: send_email_async.delay(
+                subject="Tài khoản Huấn luyện viên đã được tạo",
+                message=f"""
+                    Chào {user.first_name},
+
+                    Tài khoản PT của bạn đã được tạo. Vui lòng đăng nhập bằng:
+
+                    Tên đăng nhập: {user.username}
+                    Mật khẩu: {password}
+
+                    Trân trọng,
+                    GymCare Team
+                    """,
+                recipient_email=user.email,
+            ))
+
+    def delete_model(self, request, obj):
+        try:
+            user_id = obj.user.id
+            super().delete_model(request, obj)
+            User.objects.filter(id=user_id).delete()
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Không thể xóa trainer: {e}")
+            raise
+
+
+# class TrainerAdmin(BaseAdmin):
+#     # form = TrainerAdminForm
+#     list_display = ('id', 'user', 'experience')
+#     search_fields = ('user__username', 'user__email')
+#     list_filter = ('experience',)
+#     ordering = ('-experience',)
+#     autocomplete_fields = ('user',)
+#     fieldsets = (
+#         ("Basic information:", {
+#             "fields": ('user', 'experience')
+#         }),
+#         ("Certificate:", {
+#             "fields": ('certification',),
+#         }),
+#     )
 
 class MemberForm(forms.ModelForm):
     certification = forms.CharField(widget=CKEditorUploadingWidget, required=False)
@@ -458,27 +516,55 @@ class SubscriptionAdmin(BaseAdmin):
     def save_model(self, request, obj, form, change):
         obj.save()
 
-class PaymentAdmin(BaseAdmin):
-    list_display = ('id', 'subscription', 'amount', 'payment_method', 'payment_status')
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'subscription_link', 'amount', 'payment_method', 'payment_status')
     list_filter = ('payment_status', 'payment_method')
     search_fields = ('subscription__member__user__username',)
-    readonly_fields = ('subscription', 'amount', 'payment_method', 'payment_status', 'image_view', 'receipt_url')
+    readonly_fields = ('subscription_link', 'amount', 'payment_method', 'payment_status', 'receipt_url', 'receipt_preview')
+
     fieldsets = (
-        ('Payment Information', {
-            'fields': ('subscription', 'amount', 'payment_method', 'payment_status'),
-            'description': 'Basic information about the payment, including amount and method of payment.'
+        ('Payment Details', {
+            'fields': ('subscription_link', 'amount', 'payment_method', 'payment_status'),
+            'description': 'Thông tin chi tiết thanh toán.'
         }),
-        ('Receipt', {
-            'fields': ('receipt_url', 'image_view'),
-            'description': 'Upload and view the receipt image here.',
+        ('Receipt Preview', {
+            'fields': ('receipt_url', 'receipt_preview'),
+            'description': 'Xem biên lai thanh toán (PDF hoặc ảnh).'
         }),
     )
 
-    def image_view(self, payment):
-        if payment.receipt_url:
-            return mark_safe(f"<img src='{payment.receipt_url.url}' width='100px' />")
-        else:
-            return "No receipt image available."
+    def subscription_link(self, obj):
+        if obj.subscription:
+            try:
+                url = reverse("admin:gymcareapp_subscription_change", args=[obj.subscription.pk])
+                return format_html('<a href="{}">#{}</a>', url, obj.subscription.pk)
+            except Exception:
+                return f'#{obj.subscription.pk}'
+        return "-"
+    subscription_link.short_description = "Subscription"
+
+    def receipt_preview(self, obj):
+        url = obj.receipt_url
+        if not url:
+            return "Không có biên lai."
+
+        try:
+            if url:
+                return mark_safe(f'''
+                    <iframe src="{url}" width="100%" height="500px" style="border: 1px solid #ccc;"></iframe>
+                    <p><a href="{url}" target="_blank">Xem PDF toàn màn hình</a></p>
+                ''')
+            else:
+                return mark_safe(f'''
+                    <img src="{url}" style="max-width: 100%; border: 1px solid #ccc;" />
+                    <p><a href="{url}" target="_blank">Xem ảnh toàn màn hình</a></p>
+                ''')
+        except Exception as e:
+            return f"Lỗi khi hiển thị: {e}"
+    receipt_preview.short_description = "Xem Biên Lai"
+
 
 class CategoryPackagesAdmin(BaseAdmin):
     list_display = ('id', 'created_date', 'updated_date', 'deleted_date', 'active', 'name', 'description')
