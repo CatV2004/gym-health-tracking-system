@@ -173,6 +173,7 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
   }, [showChangeModal]);
 
   const renderScheduleItem = (schedule) => {
+    console.log("schedule:" ,schedule)
     const formattedDate = moment(schedule.scheduled_at).format("LLL");
     const statusInfo = STATUS_MAP[schedule.status] || {
       text: "Không xác định",

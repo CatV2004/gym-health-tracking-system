@@ -9,6 +9,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 from enum import IntEnum, Enum
+import uuid
 
 from django.utils.timezone import now
 
@@ -195,7 +196,7 @@ class Subscription(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="subscriptions")
     training_package = models.ForeignKey(TrainingPackage, on_delete=models.CASCADE, related_name="subscriptions")
     start_date = models.DateField(null=True, default=timezone.now)
-    end_date = models.DateField(null=True, blank=True)  # Sẽ được tính tự động nếu không được cung cấp
+    end_date = models.DateField(null=True, blank=True)
     status = models.IntegerField(choices=SubscriptionStatus.choices, default=SubscriptionStatus.PENDING)
     total_cost = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)
     quantity = models.IntegerField(default=1)
@@ -246,6 +247,7 @@ class PaymentMethod(IntEnum):
 
 
 class Payment(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True, related_name="payments")
     amount = models.DecimalField(max_digits=10, decimal_places=2, null=False)
     payment_method = models.IntegerField(choices=PaymentMethod.choices(), null=False)
@@ -306,6 +308,14 @@ class WorkoutSchedule(BaseModel):
 
     def __str__(self):
         return f"Workout session for {self.subscription.member.user.username} on {self.scheduled_at}"
+
+    def cancel_schedule(self):
+        if self.status == WorkoutScheduleStatus.CANCELLED.value:
+            raise ValidationError("Lịch tập đã bị hủy trước đó.")
+        if self.change_requests.exists():
+            raise ValidationError("Không thể hủy lịch tập vì đã có yêu cầu thay đổi liên quan.")
+        self.status = WorkoutScheduleStatus.CANCELLED.value
+        self.save()
 
 
 class ChangeRequestStatus(IntEnum):

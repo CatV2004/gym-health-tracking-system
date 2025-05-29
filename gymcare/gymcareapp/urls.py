@@ -19,11 +19,14 @@ router.register(r'change-requests', views.WorkoutScheduleChangeRequestViewSet, b
 
 
 urlpatterns = [
-    path('payment/<int:pk>/zalopay-order/', views.ZaloPayOrderView.as_view(), name='zalopay-order'),
+    path('', include(router.urls)),
+
+    path('payment/<uuid:pk>/zalopay-order/', views.ZaloPayOrderView.as_view(), name='zalopay-order'),
     path('api/payments/create/', views.PaymentView.as_view(), name='create_payment'),
     path('api/payments/payment_return/', views.PaymentReturnView.as_view(), name='payment_return'),
+    path('api/payments/<str:payment_id>/upload-receipt/', views.PaymentReceiptUploadView.as_view(), name='upload-payment-receipt'),
     path('api/payments/ipn/', views.PaymentIPNView.as_view(), name='payment_ipn'),
     path('api/payments/update_status/', views.UpdatePaymentStatusView.as_view(), name='update_payment_status'),
     path("pt-dashboard/", views.PTDashboardView.as_view(), name="pt-dashboard"),
-    path('', include(router.urls)),
+
 ]

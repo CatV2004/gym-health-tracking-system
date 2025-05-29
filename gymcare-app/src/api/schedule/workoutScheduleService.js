@@ -19,6 +19,28 @@ export const createWorkoutSchedule = async (data, token) => {
   }
 };
 
+export const cancelWorkoutSchedule = async (scheduleId, token) => {
+  try {
+    const response = await axios.patch(
+      `${API_BASE}/workout-schedules/${scheduleId}/cancel/`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    // console.error(
+    //   `Error canceling workout schedule #${scheduleId}:`,
+    //   error.response?.data || error.message
+    // );
+    throw error;
+  }
+};
+
 export const getMemberSchedule = async (token) => {
   try {
     const response = await axios.get(`${API_BASE}/workout-schedules/`, {
@@ -39,19 +61,21 @@ export const getMemberSchedule = async (token) => {
 
 export const getChangeRequestsByScheduleId = async (scheduleId, token) => {
   try {
-    const response = await axios.get(`${API_BASE}/workout-schedules/${scheduleId}/change-requests/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(
+      `${API_BASE}/workout-schedules/${scheduleId}/change-requests/`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
     return response.data;
   } catch (error) {
-    console.error('Failed to fetch change requests:', error);
+    console.error("Failed to fetch change requests:", error);
     throw error;
   }
 };
-
 
 export const respondToChangeRequest = async (requestId, response, token) => {
   try {
@@ -72,6 +96,8 @@ export const respondToChangeRequest = async (requestId, response, token) => {
       "Error responding to change request:",
       error.response?.data || error.message
     );
+    error.userMessage =
+      error.response?.data?.detail || "Không thể xử lý yêu cầu";
     throw error;
   }
 };
@@ -94,7 +120,6 @@ export const getTrainerWorkoutSchedules = async (token) => {
   }
 };
 
-
 /**
  * Create a schedule change request
  * @param {Object} data - Change request data
@@ -112,7 +137,7 @@ export const createChangeRequest = async (data, token) => {
         "Content-Type": "application/json",
       },
     });
-    console.log("Bearer ${token}: Bearer", {token})
+    console.log("Bearer ${token}: Bearer", { token });
     return response.data;
   } catch (error) {
     console.error(

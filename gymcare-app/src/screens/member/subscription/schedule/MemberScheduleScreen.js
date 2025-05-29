@@ -19,7 +19,7 @@ import { format, parseISO, isSameDay } from "date-fns";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import styles from "./MemberScheduleScreen.styles";
 import colors from "../../../../constants/colors";
-
+// import { formatInTimeZone } from "date-fns-tz";
 import CalendarSelector from "../../../../components/schedule/CalendarSelector";
 import SessionItem from "../../../../components/schedule/SessionItem";
 
@@ -59,12 +59,10 @@ const MemberScheduleScreen = ({ navigation }) => {
       const requestsMap = {};
       const subscriptionsMap = {};
 
-      // Tạo Set các subscription id cần fetch
       const subscriptionIds = new Set(
         schedulesData.map((schedule) => schedule.subscription)
       );
 
-      // Fetch tất cả subscriptions cần thiết
       await Promise.all(
         Array.from(subscriptionIds).map(async (subId) => {
           try {
@@ -76,7 +74,6 @@ const MemberScheduleScreen = ({ navigation }) => {
         })
       );
 
-      // Fetch change requests
       for (const schedule of schedulesData) {
         requestsMap[schedule.id] = await getChangeRequestsByScheduleId(
           schedule.id,
@@ -104,6 +101,11 @@ const MemberScheduleScreen = ({ navigation }) => {
     fetchData();
   };
 
+  const handleCancelSuccess = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
   const getSessionsForSelectedDate = () => {
     return schedules.filter((s) =>
       isSameDay(parseISO(s.scheduled_at), new Date(selectedDate))
@@ -111,11 +113,9 @@ const MemberScheduleScreen = ({ navigation }) => {
   };
 
   const handleRespondToRequest = async (requestId, response) => {
-    console.log("response: ", response)
     try {
       setProcessingRequest(requestId);
       const rs = await respondToChangeRequest(requestId, response, token);
-      console.log("rs: ", rs.status)
       if (rs.status === 200) {
         Alert.alert(
           "Thành công",
@@ -124,23 +124,21 @@ const MemberScheduleScreen = ({ navigation }) => {
         );
       }
     } catch {
-      Alert.alert("Lỗi", "Không thể xử lý yêu cầu.");
+      Alert.alert("Lỗi", error.userMessage || "Không thể xử lý yêu cầu");
     } finally {
       setProcessingRequest(null);
     }
   };
 
   const renderRequestActions = (request) => {
-
     if (request.status === 0) {
       return (
         <View style={styles.requestActionsContainer}>
-          {/* Nút Chấp nhận */}
           <TouchableOpacity
             style={[
               styles.responseButton,
               styles.acceptButton,
-              { backgroundColor: "green", borderRadius: 8 }, // Màu nền xanh cho "Chấp nhận"
+              { backgroundColor: "green", borderRadius: 8 },
             ]}
             onPress={() => handleRespondToRequest(request.id, "ACCEPT")}
             disabled={processingRequest === request.id}
@@ -158,12 +156,11 @@ const MemberScheduleScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Nút Từ chối */}
           <TouchableOpacity
             style={[
               styles.responseButton,
               styles.rejectButton,
-              { backgroundColor: "red", borderRadius: 8 }, // Màu nền đỏ cho "Từ chối"
+              { backgroundColor: "red", borderRadius: 8 },
             ]}
             onPress={() => handleRespondToRequest(request.id, "REJECT")}
             disabled={processingRequest === request.id}
@@ -256,6 +253,7 @@ const MemberScheduleScreen = ({ navigation }) => {
               STATUS={STATUS}
               REQUEST_STATUS={REQUEST_STATUS}
               renderRequestActions={renderRequestActions}
+              onCancelSuccess={handleCancelSuccess}
             />
           ))
         )}

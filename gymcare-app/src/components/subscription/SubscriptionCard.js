@@ -1,16 +1,16 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import styles from '../../screens/member/subscription/SubscriptionListScreen.styles';
-import colors from '../../constants/colors';
-import { formatCurrency, formatDate } from '../../utils/format';
+import React from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import styles from "../../screens/member/subscription/SubscriptionListScreen.styles";
+import colors from "../../constants/colors";
+import { formatCurrency, formatDate } from "../../utils/format";
 
-const SubscriptionCard = ({ 
-  item, 
-  onPress, 
-  onRatePress, 
-  onBookPress, 
-  isActive 
+const SubscriptionCard = ({
+  item,
+  onPress,
+  onRatePress,
+  onBookPress,
+  isActive,
 }) => {
   const ptName = `${item.training_package.pt.user.first_name} ${item.training_package.pt.user.last_name}`;
   const sessionsCompleted = 0;
@@ -32,7 +32,8 @@ const SubscriptionCard = ({
           style={[
             styles.statusBadge,
             {
-              backgroundColor: item.status === 1 ? colors.success : colors.warning,
+              backgroundColor:
+                item.status === 1 ? colors.success : colors.warning,
             },
           ]}
         >
@@ -91,17 +92,11 @@ const SubscriptionCard = ({
           </Text>
 
           {isActive ? (
-            <TouchableOpacity
-              style={styles.bookButton}
-              onPress={onBookPress}
-            >
+            <TouchableOpacity style={styles.bookButton} onPress={onBookPress}>
               <Text style={styles.bookButtonText}>Đặt lịch tập</Text>
             </TouchableOpacity>
-          ) : (canRatePackage || canRateTrainer) ? (
-            <TouchableOpacity
-              style={styles.rateButton}
-              onPress={onRatePress}
-            >
+          ) : canRatePackage || canRateTrainer ? (
+            <TouchableOpacity style={styles.rateButton} onPress={onRatePress}>
               <Text style={styles.rateButtonText}>Đánh giá</Text>
             </TouchableOpacity>
           ) : null}

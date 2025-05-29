@@ -87,7 +87,6 @@ class MemberSchedulePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated or request.user.role != Role.MEMBER.value:
             return False
-
         try:
             member = request.user.member_profile
             return True
@@ -102,6 +101,28 @@ class MemberSchedulePermission(permissions.BasePermission):
             return obj.subscription.member.user == request.user
         elif hasattr(obj, 'member') and hasattr(obj.member, 'user'):
             return obj.member.user == request.user
+
+        return False
+
+
+class MemberChangeRequestSchedulePermission(permissions.BasePermission):
+    """
+    Permission cho member thao tác với các yêu cầu thay đổi lịch tập (WorkoutScheduleChangeRequest)
+    """
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated or request.user.role != Role.MEMBER.value:
+            return False
+        try:
+            return hasattr(request.user, 'member_profile')
+        except ObjectDoesNotExist:
+            return False
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == Role.ADMIN.value:
+            return True
+
+        if isinstance(obj, WorkoutScheduleChangeRequest):
+            return obj.schedule.subscription.member.user == request.user
 
         return False
 

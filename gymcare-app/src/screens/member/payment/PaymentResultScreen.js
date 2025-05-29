@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import colors from '../../../constants/colors';
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import colors from "../../../constants/colors";
 
 const PaymentResultScreen = () => {
   const navigation = useNavigation();
@@ -12,7 +12,7 @@ const PaymentResultScreen = () => {
   const handleNavigateHome = () => {
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Main' }],
+      routes: [{ name: "Main" }],
     });
   };
 
@@ -22,13 +22,13 @@ const PaymentResultScreen = () => {
         <>
           <Icon name="check-circle" size={80} color={colors.success} />
           <Text style={styles.successTitle}>Thanh toán thành công</Text>
-          
+
           <View style={styles.detailContainer}>
             <Text style={styles.detailText}>
               Số tiền: {payment?.amount?.toLocaleString()} VND
             </Text>
             <Text style={styles.detailText}>
-              Mã giao dịch: {payment?.transaction_id || 'N/A'}
+              Mã giao dịch: {payment?.transaction_id || "N/A"}
             </Text>
             {subscription?.training_package?.name && (
               <Text style={styles.detailText}>
@@ -38,7 +38,7 @@ const PaymentResultScreen = () => {
           </View>
 
           <Text style={styles.noteText}>
-            {message || 'Gói của bạn đã được kích hoạt thành công!'}
+            {message || "Gói của bạn đã được kích hoạt thành công!"}
           </Text>
 
           <TouchableOpacity
@@ -52,10 +52,8 @@ const PaymentResultScreen = () => {
         <>
           <Icon name="times-circle" size={80} color={colors.error} />
           <Text style={styles.errorTitle}>Thanh toán thất bại</Text>
-          
-          {message && (
-            <Text style={styles.errorMessage}>{message}</Text>
-          )}
+
+          {message && <Text style={styles.errorMessage}>{message}</Text>}
 
           <Text style={styles.noteText}>
             Vui lòng thử lại hoặc liên hệ hỗ trợ nếu vấn đề tiếp diễn.
@@ -68,9 +66,12 @@ const PaymentResultScreen = () => {
             >
               <Text style={styles.actionButtonText}>Thử lại</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: colors.secondary },
+              ]}
               onPress={handleNavigateHome}
             >
               <Text style={styles.actionButtonText}>Về trang chủ</Text>
@@ -85,45 +86,45 @@ const PaymentResultScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 25,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   successTitle: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: "600",
     marginVertical: 15,
     color: colors.success,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorTitle: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: "600",
     marginVertical: 15,
     color: colors.error,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorMessage: {
     fontSize: 16,
     color: colors.error,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 10,
   },
   detailContainer: {
     marginVertical: 15,
-    width: '100%',
+    width: "100%",
     paddingHorizontal: 20,
   },
   detailText: {
     fontSize: 16,
     marginVertical: 5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   noteText: {
     fontSize: 16,
-    color: '#6c757d',
-    textAlign: 'center',
+    color: "#6c757d",
+    textAlign: "center",
     marginVertical: 10,
     paddingHorizontal: 20,
   },
@@ -136,16 +137,16 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   homeButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   buttonGroup: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 20,
-    justifyContent: 'space-around',
-    width: '100%',
+    justifyContent: "space-around",
+    width: "100%",
   },
   actionButton: {
     paddingVertical: 12,
@@ -154,10 +155,10 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   actionButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
 
