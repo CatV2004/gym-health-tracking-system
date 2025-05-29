@@ -24,17 +24,26 @@ celery_app.conf.beat_schedule = {
         'schedule': 5,
     },
 'remind_upcoming_workouts': {
-        'task': 'gymcare.tasks.remind_upcoming_workouts',
+        'task': 'gymcareapp.tasks.remind_upcoming_workouts',
         'schedule': 60.0 * 60,
     },
 'remind_expiring_subscriptions': {
-        'task': 'gymcare.tasks.remind_expiring_subscriptions',
+        'task': 'gymcareapp.tasks.remind_expiring_subscriptions',
         'schedule': 60.0 * 60 * 24,
     },
 'notify_new_promotions': {
-        'task': 'gymcare.tasks.notify_new_promotions',
+        'task': 'gymcareapp.tasks.notify_new_promotions',
         'schedule': 60.0 * 60 * 24 * 7,
     },
+'update-schedule-status-hourly': {
+        'task': 'gymcareapp.tasks.update_workout_schedule_status',
+        'schedule': crontab(minute=0),  # Chạy mỗi giờ
+    },
+'update-subscription-status-daily': {
+        'task': 'gymcareapp.tasks.update_subscription_status',
+        'schedule': crontab(minute=0, hour=0),  # Chạy mỗi ngày lúc 00:00
+    },
+
 }
 
 celery_app.conf.broker_connection_retry_on_startup = True

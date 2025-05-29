@@ -1,10 +1,12 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { format, parseISO } from "date-fns";
 import colors from "../../constants/colors";
 import styles from "../../screens/member/subscription/schedule/MemberScheduleScreen.styles";
 import ChangeRequestSection from "./ChangeRequestSection";
+import { cancelWorkoutSchedule } from "../../api/schedule/workoutScheduleService";
+import { useSelector } from "react-redux";
 
 const SessionItem = ({
   session,
@@ -14,14 +16,58 @@ const SessionItem = ({
   STATUS,
   REQUEST_STATUS,
   renderRequestActions,
+  onCancelSuccess,
 }) => {
   const sessionTime = format(parseISO(session.scheduled_at), "HH:mm");
   const sessionDate = format(parseISO(session.scheduled_at), "dd/MM/yyyy");
   const trainingType = TRAINING_TYPES[session.training_type];
   const status = STATUS[session.status];
   const requests = changeRequests[session.id] || [];
+  const [isCanceling, setIsCanceling] = React.useState(false);
+  const token = useSelector((state) => state.auth.accessToken);
 
-  console.log("session: ", session)
+  const handleCancel = () => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn hủy lịch tập này?",
+      [
+        {
+          text: "Không",
+          style: "cancel",
+        },
+        {
+          text: "Hủy lịch",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsCanceling(true);
+              const res = await cancelWorkoutSchedule(session.id, token);
+
+              // Hiển thị thông báo thành công
+              Alert.alert("Thành công", res.message, [
+                {
+                  text: "OK",
+                  onPress: () => onCancelSuccess && onCancelSuccess(),
+                },
+              ]);
+            } catch (err) {
+              Alert.alert(
+                "Lỗi",
+                err?.response?.data?.detail ||
+                  err?.response?.data?.message ||
+                  "Không thể hủy lịch tập."
+              );
+            } finally {
+              setIsCanceling(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // console.log("session: ", session)
   const isActionable = session.status === 0 || session.status === 1;
   return (
     <View style={styles.sessionCard}>
@@ -127,10 +173,23 @@ const SessionItem = ({
               Sửa
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="delete-outline" size={18} color={colors.red} />
-            <Text style={[styles.actionText, { color: colors.red }]}>Huỷ</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleCancel}
+            disabled={isCanceling}
+          >
+            {isCanceling ? (
+              <ActivityIndicator size="small" color={colors.red} />
+            ) : (
+              <>
+                <Icon name="delete-outline" size={18} color={colors.red} />
+                <Text style={[styles.actionText, { color: colors.red }]}>
+                  Huỷ
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionButton}>
             <Icon name="check-circle-outline" size={18} color={colors.green} />
             <Text style={[styles.actionText, { color: colors.green }]}>

@@ -20,6 +20,7 @@ import BookSessionScreen from "../screens/member/subscription/schedule/BookSessi
 import MemberScheduleScreen from "../screens/member/subscription/schedule/MemberScheduleScreen";
 import TrainerWorkoutSchedulesScreen from "../screens/pt/TrainerWorkoutSchedulesScreen";
 import MySubscriptionDetail from "../screens/member/subscription/MySubscriptionDetail";
+import TodaySchedulesScreen from "../screens/pt/TodaySchedulesScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -58,6 +59,10 @@ export default function AppNavigator() {
           <Stack.Screen
             name="TrainerWorkoutSchedules"
             component={TrainerWorkoutSchedulesScreen}
+          />
+          <Stack.Screen
+            name="TodaySchedules"
+            component={TodaySchedulesScreen}
           />
         </>
       )}

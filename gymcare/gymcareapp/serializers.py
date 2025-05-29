@@ -601,26 +601,12 @@ class MemberResponseToChangeRequestSerializer(serializers.Serializer):
         choices=['ACCEPT', 'REJECT'],
         required=True
     )
-    reason = serializers.CharField(required=False, allow_blank=True)
+    # reason = serializers.CharField(required=False, allow_blank=True)
 
-    def validate(self, data):
-        if data['response'] == 'REJECT' and not data.get('reason'):
-            raise serializers.ValidationError({"reason": "Reason is required when rejecting a change request."})
-        return data
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # def validate(self, data):
+    #     if data['response'] == 'REJECT' and not data.get('reason'):
+    #         raise serializers.ValidationError({"reason": "Reason is required when rejecting a change request."})
+    #     return data
 
     def validate_schedule(self, schedule):
         if schedule.status != WorkoutScheduleStatus.PENDING:
@@ -700,12 +686,20 @@ class PTDashboardSerializer(serializers.Serializer):
     priority_members = serializers.SerializerMethodField()
 
     def get_total_members(self, trainer):
-        subscriptions = Subscription.objects.filter(training_package__pt=trainer)
+        subscriptions = Subscription.objects.filter(
+            training_package__pt=trainer,
+            training_package__pt__active=True,
+        )
         return subscriptions.values('member').distinct().count()
 
     def get_sessions_today(self, trainer):
         today = timezone.now().date()
         return WorkoutSchedule.objects.filter(
+            status__in=[
+                WorkoutScheduleStatus.CHANGED.value,
+                WorkoutScheduleStatus.APPROVED.value,
+                WorkoutScheduleStatus.COMPLETED.value,
+            ],
             subscription__training_package__pt=trainer,
             scheduled_at__date=today
         ).count()
@@ -721,7 +715,12 @@ class PTDashboardSerializer(serializers.Serializer):
         upcoming = WorkoutSchedule.objects.filter(
             subscription__training_package__pt=trainer,
             scheduled_at__gte=timezone.now(),
-            scheduled_at__lte=timezone.now() + timedelta(days=3)
+            scheduled_at__lte=timezone.now() + timedelta(days=3),
+            status__in = [
+                WorkoutScheduleStatus.CHANGED.value,
+                WorkoutScheduleStatus.APPROVED.value,
+                WorkoutScheduleStatus.COMPLETED.value,
+        ],
         ).order_by('scheduled_at')[:5]
         return WorkoutScheduleSerializer(upcoming, many=True).data
 

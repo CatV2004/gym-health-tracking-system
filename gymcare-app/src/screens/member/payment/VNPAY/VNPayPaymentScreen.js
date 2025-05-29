@@ -15,6 +15,9 @@ import {
 } from "../../../../api/payment/vnpayServiceApi";
 import colors from "../../../../constants/colors";
 import { useSelector } from "react-redux";
+import styles from "./VNPayPaymentScreen.styles";
+import { getVnpayResponseMessage } from "../../../../utils/vnpayMessages";
+import generateAndUploadReceipt from "../../../../utils/generateAndUploadReceipt";
 
 const VNPayPaymentScreen = () => {
   const route = useRoute();
@@ -81,8 +84,17 @@ const VNPayPaymentScreen = () => {
     const { url } = navState;
     if (!url || isProcessing) return;
 
+    if (
+      url.includes("/api/") &&
+      !url.includes("/api/payments/payment_return/")
+    ) {
+      setLoading(true);
+      return;
+    }
+
     // Kiểm tra URL return của VNPay
     if (url.includes("/api/payments/payment_return/")) {
+      setLoading(true);
       handlePaymentReturn(url);
     }
   };
@@ -134,38 +146,60 @@ const VNPayPaymentScreen = () => {
 
   // Xử lý kết quả thanh toán
   const processPaymentResult = async (queryParams) => {
-    console.log("Processing payment result with params:", queryParams);
     if (queryParams.vnp_ResponseCode === "00") {
-      const result = await paymentReturn(queryParams, token);
-      console.log("Payment return result:", result);
+      try {
+        const result = await paymentReturn(queryParams, token);
+        if (result.status === "success") {
+          const paymentData = {
+            id: result.order_id,
+            amount: queryParams.vnp_Amount
+              ? parseInt(queryParams.vnp_Amount) / 100
+              : 0,
+            transaction_id: queryParams.vnp_TransactionNo || "N/A",
+            bank_code: queryParams.vnp_BankCode || "N/A",
+            bank_trans_no: queryParams.vnp_BankTranNo || "N/A",
+            pay_date: queryParams.vnp_PayDate || "N/A",
+          };
 
-      if (result.status === "success") {
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: "PaymentResult",
-              params: {
-                success: true,
-                payment: {
-                  amount: queryParams.vnp_Amount
-                    ? parseInt(queryParams.vnp_Amount) / 100
-                    : 0,
-                  transaction_id: queryParams.vnp_TransactionNo || "N/A",
-                  bank_code: queryParams.vnp_BankCode || "N/A",
-                  bank_trans_no: queryParams.vnp_BankTranNo || "N/A",
-                  pay_date: queryParams.vnp_PayDate || "N/A",
+          try {
+            await generateAndUploadReceipt(paymentData, subscription, token);
+          } catch (receiptError) {
+            console.error("Receipt generation failed:", receiptError);
+          }
+
+          navigation.reset({
+            index: 0,
+            routes: [
+              {
+                name: "PaymentResult",
+                params: {
+                  success: true,
+                  payment: {
+                    amount: queryParams.vnp_Amount
+                      ? parseInt(queryParams.vnp_Amount) / 100
+                      : 0,
+                    transaction_id: queryParams.vnp_TransactionNo || "N/A",
+                    bank_code: queryParams.vnp_BankCode || "N/A",
+                    bank_trans_no: queryParams.vnp_BankTranNo || "N/A",
+                    pay_date: queryParams.vnp_PayDate || "N/A",
+                  },
+                  subscription,
+                  message: "Thanh toán thành công",
                 },
-                subscription,
-                message: "Thanh toán thành công",
               },
-            },
-          ],
-        });
-      } else {
-        throw new Error(result.message || "Lỗi xác nhận thanh toán từ server");
+            ],
+          });
+        } else {
+          throw new Error(
+            result.message || "Lỗi xác nhận thanh toán từ server"
+          );
+        }
+      } catch (error) {
+        console.error("Payment processing error:", error);
+        handlePaymentError(error);
       }
     } else {
+      // Xử lý trường hợp thanh toán không thành công
       navigation.reset({
         index: 0,
         routes: [
@@ -231,26 +265,6 @@ const VNPayPaymentScreen = () => {
     );
   }
 
-  const getVnpayResponseMessage = (code) => {
-    const messages = {
-      "00": "Giao dịch thành công",
-      "07": "Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường).",
-      "09": "Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng chưa đăng ký dịch vụ InternetBanking tại ngân hàng.",
-      10: "Giao dịch không thành công do: Khách hàng xác thực thông tin thẻ/tài khoản không đúng quá 3 lần",
-      11: "Giao dịch không thành công do: Đã hết hạn chờ thanh toán. Xin quý khách vui lòng thực hiện lại giao dịch.",
-      24: "Giao dịch không thành công do: Khách hàng hủy giao dịch",
-      51: "Giao dịch không thành công do: Tài khoản của quý khách không đủ số dư để thực hiện giao dịch.",
-      65: "Giao dịch không thành công do: Tài khoản của Quý khách đã vượt quá hạn mức giao dịch trong ngày.",
-      75: "Ngân hàng thanh toán đang bảo trì.",
-      79: "Giao dịch không thành công do: KH nhập sai mật khẩu thanh toán quá số lần quy định. Xin quý khách vui lòng thực hiện lại giao dịch.",
-      99: "Các lỗi khác (lỗi còn lại, không có trong danh sách mã lỗi đã liệt kê)",
-    };
-
-    return (
-      messages[code] ||
-      `Thanh toán thất bại (Mã lỗi: ${code || "Không xác định"})`
-    );
-  };
   return (
     <View style={styles.container}>
       <WebView
@@ -293,63 +307,17 @@ const VNPayPaymentScreen = () => {
 
       {/* Hiển thị khi đang tải hoặc xử lý */}
       {(loading || isProcessing) && (
-        <View style={styles.processingOverlay}>
-          <View style={styles.processingContainer}>
-            <ActivityIndicator size="large" color={colors.white} />
-            <Text style={styles.processingText}>
-              {isProcessing
-                ? "Đang xử lý kết quả thanh toán..."
-                : "Đang tải trang thanh toán..."}
-            </Text>
-          </View>
+        <View style={styles.fullscreenOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>
+            {isProcessing
+              ? "Đang xử lý thanh toán..."
+              : "Đang kết nối với cổng thanh toán..."}
+          </Text>
         </View>
       )}
     </View>
   );
-};
-
-const styles = {
-  container: {
-    flex: 1,
-    position: "relative",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.white,
-  },
-  loadingText: {
-    marginTop: 16,
-    color: colors.text,
-  },
-  errorText: {
-    marginTop: 8,
-    color: colors.error,
-    textAlign: "center",
-    paddingHorizontal: 20,
-  },
-  processingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  processingContainer: {
-    backgroundColor: colors.primary,
-    padding: 20,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  processingText: {
-    color: colors.white,
-    marginTop: 10,
-    fontSize: 16,
-  },
 };
 
 export default VNPayPaymentScreen;

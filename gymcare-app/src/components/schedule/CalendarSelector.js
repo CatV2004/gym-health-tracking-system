@@ -13,7 +13,7 @@ const CalendarSelector = ({ schedules, selectedDate, onDayPress, TRAINING_TYPES 
     };
     return acc;
   }, { [selectedDate]: { selected: true } });
-
+  
   return (
     <Calendar
       current={selectedDate}

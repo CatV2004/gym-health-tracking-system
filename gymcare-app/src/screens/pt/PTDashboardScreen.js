@@ -90,6 +90,7 @@ const PTDashboardScreen = ({ navigation }) => {
           title="Buổi tập hôm nay"
           value={dashboardData?.sessions_today || 0}
           icon="calendar-check"
+          onPress={() => navigation.navigate("TodaySchedules")}
         />
         <PTStatsCard
           title="Chờ duyệt"
@@ -121,7 +122,6 @@ const PTDashboardScreen = ({ navigation }) => {
             const formattedTime = format(
               new Date(session.scheduled_at),
               "HH:mm dd/MM/yyyy",
-              { locale: vi }
             );
 
             return (

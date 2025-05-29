@@ -18,7 +18,7 @@ export const getPTDashboard = async (token) => {
 
 export const getTodaySchedules = async (token) => {
   try {
-    const response = await axios.get(`${API_URL}/trainer/today-schedules/`, {
+    const response = await axios.get(`${API_BASE}/trainer/today-schedules/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

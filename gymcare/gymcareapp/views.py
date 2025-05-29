@@ -21,7 +21,6 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from . import serializers
 from .models import *
-from .pems import *
 from .permissions import *
 import json
 import uuid
@@ -35,6 +34,8 @@ import hmac
 import time
 from django.conf import settings
 from datetime import datetime, timedelta
+from django.db.models import Q
+from cloudinary.uploader import upload
 
 
 class ZaloPayOrderView(APIView):
@@ -229,7 +230,9 @@ class TrainerViewSet(mixins.CreateModelMixin,
 
         schedules = WorkoutSchedule.objects.filter(
             subscription__training_package__pt=trainer,
-            training_type = TrainingType.PERSONAL_TRAINER.value
+            training_type = TrainingType.PERSONAL_TRAINER.value,
+            subscription__active=True,
+            subscription__status=1,
         ).select_related(
             'subscription__member__user',
             'subscription__training_package'
@@ -259,7 +262,16 @@ class TrainerViewSet(mixins.CreateModelMixin,
         schedules = WorkoutSchedule.objects.filter(
             subscription__training_package__pt=trainer,
             training_type=TrainingType.PERSONAL_TRAINER.value,
-            scheduled_at__date=today
+            scheduled_at__date=today,
+            subscription__active=True,
+            subscription__status=1,
+            status__in=[
+                WorkoutScheduleStatus.CHANGED.value,
+                WorkoutScheduleStatus.APPROVED.value,
+                WorkoutScheduleStatus.COMPLETED.value,
+            ],
+        ).filter(
+            Q(status=WorkoutScheduleStatus.CHANGED.value) | Q(status=WorkoutScheduleStatus.APPROVED.value)
         ).select_related(
             'subscription__member__user',
             'subscription__training_package'
@@ -705,15 +717,12 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 class WorkoutScheduleViewSet(viewsets.ModelViewSet):
     queryset = WorkoutSchedule.objects.all()
     serializer_class = WorkoutScheduleSerializer
-    # permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'create']:
+        if self.action in ['list', 'retrieve', 'create', 'change_requests','cancel_schedule']:
             return [MemberSchedulePermission()]
         elif self.action in ['partial_update', 'trainer_approve_session']:
             return [TrainerScheduleChangePermission()]
-        elif self.action == 'change_requests':
-            return [MemberSchedulePermission()]
         else:
             return [IsAdmin()]
 
@@ -774,6 +783,20 @@ class WorkoutScheduleViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
+    @action(detail=True, methods=['patch'], url_path='cancel')
+    def cancel_schedule(self, request, pk=None):
+        instance = self.get_object()
+        try:
+            instance.cancel_schedule()
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(instance)
+        return Response({
+            "message": "Lịch tập đã được hủy thành công.",
+            "schedule": serializer.data
+        }, status=status.HTTP_200_OK)
+
     # @action(detail=True, methods=['patch'], url_path='trainer-complete')
     # def trainer_complete_session(self, request, pk=None):
     #     instance = get_object_or_404(self.get_queryset(), pk=pk)
@@ -799,7 +822,7 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'destroy', 'cancel']:
             return [TrainerScheduleChangePermission()]
         elif self.action == 'member_response':
-            return [MemberSchedulePermission()]
+            return [MemberChangeRequestSchedulePermission()]
         elif self.action == 'member_requests':
             return [MemberSchedulePermission()]
         else:
@@ -862,7 +885,6 @@ class WorkoutScheduleChangeRequestViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=['post'],
-            permission_classes=[IsMember, IsMemberOwner],
             serializer_class=MemberResponseToChangeRequestSerializer)
     def member_response(self, request, pk=None):
         change_request = self.get_object()
@@ -1135,7 +1157,7 @@ class PaymentReturnView(APIView):
         try:
             # Extract payment information
             payment_id = input_data['vnp_TxnRef']
-            amount = float(input_data['vnp_Amount']) / 100  # Convert from VND to actual amount
+            amount = float(input_data['vnp_Amount']) / 100
             response_code = input_data['vnp_ResponseCode']
 
             # Get payment record
@@ -1203,6 +1225,58 @@ class PaymentReturnView(APIView):
                     "result": "error",
                     "message": str(e),
                 },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PaymentReceiptUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def patch(self, request, payment_id):
+        try:
+            payment = Payment.objects.get(
+                id=payment_id,
+                subscription__member__user=request.user
+            )
+
+            if payment.payment_status != PaymentStatus.COMPLETED:
+                return Response(
+                    {"error": "Chỉ có thể upload biên lai cho thanh toán đã hoàn thành"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            receipt_file = request.FILES.get('receipt')
+            if not receipt_file:
+                return Response(
+                    {"error": "Vui lòng chọn file biên lai để upload"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            upload_result = upload(
+                receipt_file,
+                folder="gymcare/receipts",
+                public_id=f"payment_{payment_id}",
+                resource_type="auto"
+            )
+
+            payment.receipt_url = upload_result['secure_url']
+            payment.save()
+
+            return Response({
+                "status": "success",
+                "message": "Cập nhật biên lai thành công",
+                "receipt_url": payment.receipt_url
+            }, status=status.HTTP_200_OK)
+
+        except Payment.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy thanh toán"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

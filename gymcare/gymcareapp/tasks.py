@@ -7,7 +7,9 @@ from datetime import timedelta
 from django.apps import apps
 from django.db import DatabaseError
 
-from gymcareapp.models import BaseModel
+from gymcareapp.models import BaseModel, SubscriptionStatus, WorkoutSchedule, Notification, WorkoutScheduleStatus
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -121,3 +123,84 @@ def expire_ended_subscriptions():
             user=sub.member.user,
             message="Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục tập luyện.",
         )
+
+
+@shared_task
+def update_workout_schedule_status():
+    try:
+        now = timezone.now()
+        buffer_time = now - timedelta(hours=1)
+
+        schedules_to_complete = WorkoutSchedule.objects.filter(
+            scheduled_at__lte=buffer_time,
+            status__in=[
+                WorkoutScheduleStatus.SCHEDULED.value,
+                WorkoutScheduleStatus.APPROVED.value
+            ]
+        )
+
+        count = 0
+        for schedule in schedules_to_complete:
+            with transaction.atomic():
+                schedule.status = WorkoutScheduleStatus.COMPLETED.value
+                schedule.save()
+                count += 1
+
+        logger.info(f"Đã cập nhật {count} buổi tập thành COMPLETED")
+        return f"Updated {count} schedules to COMPLETED"
+
+    except Exception as e:
+        logger.error(f"Lỗi khi cập nhật trạng thái buổi tập: {str(e)}")
+        raise
+
+
+@shared_task
+def update_subscription_status():
+    try:
+        now = timezone.now().date()
+        expired_subs = Subscription.objects.filter(
+            end_date__lt=now,
+            status=SubscriptionStatus.ACTIVE.value
+        )
+
+        count = 0
+        for sub in expired_subs:
+            with transaction.atomic():
+                sub.status = SubscriptionStatus.EXPIRED.value
+                sub.save()
+                count += 1
+
+        logger.info(f"Đã cập nhật {count} gói tập thành EXPIRED")
+        return f"Updated {count} subscriptions to EXPIRED"
+
+    except Exception as e:
+        logger.error(f"Lỗi khi cập nhật trạng thái gói tập: {str(e)}")
+        raise
+
+
+# Tự động xóa các lịch tập đã hủy trước đây 30 ngày
+@shared_task
+def delete_cancelled_workouts():
+    try:
+
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+
+        cancelled_workouts = WorkoutSchedule.objects.filter(
+            status=WorkoutScheduleStatus.CANCELLED.value,
+            updated_date__lte=thirty_days_ago,
+            active=True
+        )
+
+        count = cancelled_workouts.count()
+
+        if count > 0:
+            deleted_count, _ = cancelled_workouts.delete() #bulk delete
+            logger.info(f"Đã xóa {deleted_count} lịch tập đã hủy")
+            return deleted_count
+        else:
+            logger.info("Không có lịch tập đã hủy nào cần xóa")
+            return 0
+
+    except Exception as e:
+        logger.error(f"Lỗi khi xóa lịch tập đã hủy: {str(e)}")
+        raise

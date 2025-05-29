@@ -22,3 +22,14 @@ export const toGmt7ISOString = (date) => {
   const gmt7AdjustedDate = new Date(date.getTime() - gmt7OffsetMs);
   return gmt7AdjustedDate.toISOString();
 };
+
+export const formatDateReciept = (date) => {
+  return date.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
