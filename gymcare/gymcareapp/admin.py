@@ -462,7 +462,7 @@ class PaymentAdmin(BaseAdmin):
     list_display = ('id', 'subscription', 'amount', 'payment_method', 'payment_status')
     list_filter = ('payment_status', 'payment_method')
     search_fields = ('subscription__member__user__username',)
-    readonly_fields = ['image_view']
+    readonly_fields = ('subscription', 'amount', 'payment_method', 'payment_status', 'image_view', 'receipt_url')
     fieldsets = (
         ('Payment Information', {
             'fields': ('subscription', 'amount', 'payment_method', 'payment_status'),

@@ -24,8 +24,6 @@ urlpatterns = [
     path('api/payments/payment_return/', views.PaymentReturnView.as_view(), name='payment_return'),
     path('api/payments/ipn/', views.PaymentIPNView.as_view(), name='payment_ipn'),
     path('api/payments/update_status/', views.UpdatePaymentStatusView.as_view(), name='update_payment_status'),
-
     path("pt-dashboard/", views.PTDashboardView.as_view(), name="pt-dashboard"),
-
     path('', include(router.urls)),
 ]

@@ -1,11 +1,12 @@
-import React from "react";
+import React , { useRef, useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Dimensions, Animated } from "react-native";
 
 const { width: windowWidth } = Dimensions.get("window");
 
 const MessageSlider = () => {
-  const scrollX = new Animated.Value(0); // Thêm dòng này để khởi tạo scrollX
-  
+  const scrollX = useRef(new Animated.Value(0)).current; // Thêm dòng này để khởi tạo scrollX
+  const scrollViewRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const messages = [
     { id: 1, text: "Các lớp học 15 phút để làm các dụng cụ" },
     {
@@ -17,10 +18,20 @@ const MessageSlider = () => {
       text: "Quý hội viên vui lòng đặt lịch trước khi đến phòng tập.",
     },
   ];
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nextIndex = (currentIndex + 1) % messages.length;
+      scrollViewRef.current?.scrollTo({ x: nextIndex * windowWidth, animated: true });
+      setCurrentIndex(nextIndex);
+    }, 4000); // 4 giây mỗi slide
+
+    return () => clearInterval(interval); // Cleanup khi unmount
+  }, [currentIndex, messages.length]);
 
   return ( // Thêm return ở đây
     <View style={styles.scrollContainer}>
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -37,6 +48,10 @@ const MessageSlider = () => {
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
+        onMomentumScrollEnd={(event) => {
+          const newIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+          setCurrentIndex(newIndex);
+        }}
       >
         {messages.map((msg) => (
           <View key={msg.id} style={styles.messageBox}>

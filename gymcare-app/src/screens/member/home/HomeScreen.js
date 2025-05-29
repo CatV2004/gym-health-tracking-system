@@ -16,6 +16,7 @@ import CategorySection from "../../../components/home/CategorySection";
 import PromotionCarousel from "../../../components/home/PromotionCarousel";
 import categoryPackageService from "../../../api/categoryPackageService";
 import NewsSection from "../../../components/home/NewsSection";
+import GymReviewForm from "../../../components/home/GymReviewForm";
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useSelector((state) => state.auth);
@@ -69,7 +70,9 @@ const HomeScreen = ({ navigation }) => {
             <MenuGrid navigation={navigation} />
             <CategorySection navigation={navigation} categories={categories} />
             <PromotionCarousel />
-            <NewsSection />
+            <NewsSection />            
+            <GymReviewForm />
+          
           </>
         }
         refreshing={refreshing}

@@ -66,23 +66,50 @@ export const reviewTrainer = async (trainerId, payload, token) => {
  * @param {string} token
  */
 export const reviewGym = async (payload, token) => {
+  // try {
+  //   const response = await axios.post(
+  //     `${API_BASE}/reviews/`,
+  //     {
+  //       gym_feedback: true,
+  //       ...payload,
+  //     },
+  //     {
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     }
+  //   );
+  //   return response.data;
+  // } catch (error) {
+  //   console.error("Error reviewing gym:", error);
+  //   throw error;
+  // }
   try {
+    const fullPayload = {
+      gym_feedback: true,
+      ...payload,
+    };
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    console.log("Review payload:", fullPayload);
+    console.log("Headers:", headers);
+
     const response = await axios.post(
       `${API_BASE}/reviews/`,
+      fullPayload,
       {
-        gym_feedback: true,
-        ...payload,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: headers,
       }
     );
+
     return response.data;
   } catch (error) {
-    console.error("Error reviewing gym:", error);
+    console.error("Error reviewing gym:", error.response?.data || error.message);
     throw error;
   }
 };

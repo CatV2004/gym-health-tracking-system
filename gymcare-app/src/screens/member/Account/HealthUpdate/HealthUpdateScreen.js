@@ -129,7 +129,7 @@ export default function HealthUpdateScreen({ navigation }) {
     setForm({ ...form, [field]: value });
     // Clear error khi người dùng bắt đầu nhập
     if (fieldErrors[field]) {
-      setFieldErrors({ ...fieldErrors, [field]: null });
+      setFieldErrors({ ...fieldErrors, [field]: "" });
     }
   };
 
