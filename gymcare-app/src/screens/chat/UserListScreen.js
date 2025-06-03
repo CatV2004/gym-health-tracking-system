@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSelector } from "react-redux";
 import { MaterialIcons } from "@expo/vector-icons";
-import { getAllUsers } from "../../api/userApi";
+import { getAllUsers, getMemberOfTrainer } from "../../api/userApi";
 import { ChatService } from "../../api/chatService";
 import colors from "../../constants/colors";
 
@@ -24,23 +24,31 @@ const UserListScreen = ({ navigation }) => {
   const { user, accessToken } = useSelector((state) => state.auth);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
-
+  // console.log("user.getRole():", user.role)
   useEffect(() => {
     // Load danh sách người dùng
     const loadUsers = async () => {
       try {
-        const result = await getAllUsers(accessToken);
-        if (result.success) {
-          // Lọc bỏ user hiện tại
-          const filteredUsers = result.data.filter(
-            (userOther) => user.id !== userOther.id
-          );
-          setUsers(filteredUsers);
+        let result;
+        let usersData;
 
+      if (user.role === 1) { // Nếu là PT (role = 1)
+        result = await getMemberOfTrainer(accessToken);
+        usersData = result.data.map(member => member.user);
+      } else { // Các role khác
+        result = await getAllUsers(accessToken);
+        usersData = result.data;
+      }
 
-        } else {
-          setError(result.error);
-        }
+      if (result.success) {
+        // Lọc bỏ user hiện tại
+        const filteredUsers = usersData.filter(
+          (userOther) => user.id !== userOther.id
+        );
+        setUsers(filteredUsers);
+      } else {
+        setError(result.error || "Failed to load users");
+      }
       } catch (err) {
         setError("Failed to load users");
       } finally {
@@ -64,7 +72,7 @@ const UserListScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [accessToken, user.id, user.role]);
 
   const handleUserPress = async (userOther) => {
     try {

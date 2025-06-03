@@ -94,3 +94,27 @@ export const getUserById = async (id, token) => {
     }
   }
 }
+
+// Lấy danh sách member nếu là trainer, hoặc danh sách trainer nếu là member
+export const getMemberOfTrainer = async (token) => {
+  console.log("token:", token)
+  try {
+    const response = await axios.get(`${API_BASE}/trainer/my-members/`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      success: true,
+      data: response.data?.data || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error.response?.data?.detail ||
+        'Không thể lấy danh sách người dùng theo vai trò.',
+    };
+  }
+};

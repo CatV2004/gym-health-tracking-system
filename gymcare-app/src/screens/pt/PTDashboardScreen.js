@@ -20,7 +20,8 @@ const PTDashboardScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const token = useSelector((state) => state.auth.accessToken);
+  const {accessToken: token, user}= useSelector((state) => state.auth);
+  console.log("user: ",user)
 
   const fetchDashboardData = async () => {
     try {
@@ -110,6 +111,7 @@ const PTDashboardScreen = ({ navigation }) => {
             onPress={() =>
               navigation.navigate("PTClientDetail", { clientId: member.id })
             }
+            
           />
         ))}
       </View>

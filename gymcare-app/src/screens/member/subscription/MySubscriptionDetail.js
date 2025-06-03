@@ -19,6 +19,8 @@ import RatingModal from '../../../components/subscription/RatingModal';
 import colors from '../../../constants/colors';
 import { formatCurrency, formatDate } from '../../../utils/format';
 import styles from './MySubscriptionDetail.styles';
+import { ChatService } from "../../../api/chatService";
+
 
 const MySubscriptionDetail = ({ route, navigation }) => {
   const { subId } = route.params;
@@ -103,6 +105,40 @@ const MySubscriptionDetail = ({ route, navigation }) => {
         : `${subscription.training_package?.pt?.user?.first_name} ${subscription.training_package?.pt?.user?.last_name}` || "huấn luyện viên"
     }`;
   };
+  
+  const { user } = useSelector((state) => state.auth);
+
+
+  const handleUserPress = async (trainerUser) => {
+    try {
+      if (!trainerUser || !trainerUser.id || !user || !user.id) {
+        ToastAndroid.show("Không thể mở cuộc trò chuyện", ToastAndroid.SHORT);
+        return;
+      }
+
+      // Tạo hoặc lấy chat room
+      const { success, chatId } = await ChatService.getOrCreateChatRoom(
+        user.id,
+        trainerUser.id
+      );
+
+      if (success) {
+        navigation.navigate("ChatScreen", {
+          chatId,
+          otherUser: trainerUser,
+        });
+      } else {
+        ToastAndroid.show("Không thể tạo cuộc trò chuyện", ToastAndroid.SHORT);
+      }
+    } catch (error) {
+      console.error("Lỗi khi mở chat:", error);
+      ToastAndroid.show("Đã xảy ra lỗi", ToastAndroid.SHORT);
+    }
+  };
+
+
+ 
+
 
   if (loading) {
     return (
@@ -123,6 +159,7 @@ const MySubscriptionDetail = ({ route, navigation }) => {
   const ptName = `${subscription.training_package.pt.user.first_name} ${subscription.training_package.pt.user.last_name}`;
   const canRatePackage = subscription.status !== 1 && !subscription.user_has_rated;
   const canRateTrainer = subscription.status !== 1 && !subscription.training_package.pt.user_has_rated;
+  // console.log("subscription.training_package.pt: ",subscription.training_package.pt)
 
   return (
     <ScrollView 
@@ -160,6 +197,14 @@ const MySubscriptionDetail = ({ route, navigation }) => {
             <Text style={styles.ptDetail}>
               Chứng chỉ: {subscription.training_package.pt.certification}
             </Text>
+            <TouchableOpacity 
+              style={styles.contactButton} 
+              onPress={() => handleUserPress(subscription.training_package.pt.user)}
+            >
+              <Text style={styles.contactButtonText}>Liên lạc</Text>
+            </TouchableOpacity>
+            
+            
             {subscription.training_package.pt.average_rating > 0 && (
               <View style={styles.ratingContainer}>
                 <Icon name="star" size={16} color={colors.warning} />

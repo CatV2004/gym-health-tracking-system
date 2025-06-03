@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Button } from 'react-native';
 
-const PTClientCard = ({ client, onPress }) => {
+const PTClientCard = ({ client, onPress, onContactPress }) => {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.card}>
+    <TouchableOpacity onPress={onPress} style={styles.card} activeOpacity={0.8}>
       <View style={styles.avatarPlaceholder}>
         <Text style={styles.avatarText}>{client.full_name.charAt(0)}</Text>
       </View>
@@ -14,6 +14,8 @@ const PTClientCard = ({ client, onPress }) => {
           <Text style={styles.stat}>Cân nặng: {client.weight}kg</Text>
           <Text style={styles.stat}>Chiều cao: {client.height}cm</Text>
         </View>
+
+        
       </View>
     </TouchableOpacity>
   );
@@ -62,6 +64,10 @@ const styles = StyleSheet.create({
   stat: {
     fontSize: 12,
     color: '#888',
+  },
+  contactButtonWrapper: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
 });
 

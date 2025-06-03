@@ -70,14 +70,20 @@ const ChatScreen = ({ route, navigation }) => {
       return () => unsubscribe?.();
     }, [chatId, user.id])
   );
+  
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
 
   const scrollToBottom = () => {
-    if (listRef.current && messages.length > 0) {
+    if (listRef.current) {
       setTimeout(() => {
-        listRef.current.scrollToEnd({ animated: true });
+        listRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
   };
+
 
   const handleSend = async (messageText) => {
     if (!messageText.trim()) return;

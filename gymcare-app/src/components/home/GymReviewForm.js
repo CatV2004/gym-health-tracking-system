@@ -19,7 +19,9 @@ const GymReviewForm = () => {
   const [rating, setRating] = useState(0); // số sao đã chọn
   const [loading, setLoading] = useState(false);
   const token = useSelector((state) => state.auth.accessToken);
-
+  if (!token) {
+    return null;
+  } 
   const validate = () => {
     if (rating === 0) {
       Alert.alert("Lỗi", "Vui lòng chọn số sao đánh giá.");
