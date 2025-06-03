@@ -14,7 +14,7 @@ import ChatScreen from "../screens/chat/ChatScreen";
 import UserListScreen from "../screens/chat/UserListScreen";
 import { useSelector } from "react-redux";
 import PTClientDetailScreen from "../screens/pt/PTClientDetailScreen";
-import PTDashboardScreen from "../screens/pt/PTDashboardScreen";
+// import PTDashboardScreen from "../screens/pt/PTDashboardScreen";
 import SubscriptionListScreen from "../screens/member/subscription/SubscriptionListScreen";
 import BookSessionScreen from "../screens/member/subscription/schedule/BookSessionScreen";
 import MemberScheduleScreen from "../screens/member/subscription/schedule/MemberScheduleScreen";
@@ -22,7 +22,7 @@ import TrainerWorkoutSchedulesScreen from "../screens/pt/TrainerWorkoutSchedules
 import MySubscriptionDetail from "../screens/member/subscription/MySubscriptionDetail";
 import TodaySchedulesScreen from "../screens/pt/TodaySchedulesScreen";
 import NotificationsScreen from "../screens/member/Notification/NotificationScreen";
-import TrainingPackagesScreen from "../screens/member/home/package/TrainingPackagesScreen";
+// import TrainingPackagesScreen from "../screens/member/home/package/TrainingPackagesScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -52,7 +52,7 @@ export default function AppNavigator() {
           <Stack.Screen name="BookSession" component={BookSessionScreen} />
           <Stack.Screen name="MemberSchedule" component={MemberScheduleScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="TrainingPackages" component={TrainingPackagesScreen}/>
+          {/* <Stack.Screen name="TrainingPackages" component={TrainingPackagesScreen}/> */}
         </>
       )}
       {role === 1 && (

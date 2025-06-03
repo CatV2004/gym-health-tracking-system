@@ -5,15 +5,12 @@ const API_URL = `${API_BASE}/trainer/my-members/`;
 
 export const getClientPrediction = async (clientId, token) => {
   try {
-    const response = await axios.get(
-      `${API_BASE}/get-latest-prediction/`,
-      {
-        params: { member_id: clientId },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const response = await axios.get(`${API_BASE}/get-latest-prediction/`, {
+      params: { member_id: clientId },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     return response.data;
   } catch (error) {
@@ -71,14 +68,17 @@ export const recordClientProgress = async (clientId, progressData, token) => {
   }
 };
 
-export const getClientProgressHistory = async (clientId, token) => {
+export const getClientProgressHistory = async (clientId, token, page = 1) => {
   try {
-    const response = await axios.get(`${API_URL}${clientId}/get-progress/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data.data;
+    const response = await axios.get(
+      `${API_URL}${clientId}/get-progress/?page=${page}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
   } catch (error) {
     console.error("Error fetching progress history:", error);
     throw error;

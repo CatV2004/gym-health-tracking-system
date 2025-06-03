@@ -78,7 +78,8 @@ const TrainerWorkoutSchedulesScreen = ({ navigation }) => {
     try {
       setRefreshing(true);
       const response = await getTrainerWorkoutSchedules(token);
-      const scheduleData = response.data;
+      const scheduleData = response.results;
+      console.log("response: ", scheduleData)
 
       const enrichedSchedules = await Promise.all(
         scheduleData.map(async (schedule) => {

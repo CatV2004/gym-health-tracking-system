@@ -6,8 +6,8 @@
     "scheme": "gymcareapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -63,23 +63,7 @@
             "DEFAULT"
           ]
         }
-      ],
-      "package": "com.anonymous.gymcareapp",
-      "googleServicesFile": "./google-services.json",
-      "compileSdkVersion": 33
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "ffdd5a4e-ec54-4108-9256-10d2b75e3f92"
-      }
-    },
-    "owner": "catv2004",
-    "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
-    ]
+      ]
+    }
   }
 }

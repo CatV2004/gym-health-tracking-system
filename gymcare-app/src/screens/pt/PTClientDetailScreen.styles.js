@@ -221,6 +221,10 @@ const styles = StyleSheet.create({
     color: "#4CAF50",
     fontWeight: "bold",
   },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
 });
 
 export default styles;

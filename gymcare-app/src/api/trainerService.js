@@ -34,6 +34,6 @@ const trainerService = {
       throw new Error(error.response?.data?.detail || "Không thể lấy thông tin PT");
     }
   },
-};s
+};
 
 export default trainerService;

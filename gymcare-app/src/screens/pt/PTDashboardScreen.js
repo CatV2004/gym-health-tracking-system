@@ -39,8 +39,6 @@ const PTDashboardScreen = ({ navigation }) => {
   useEffect(() => {
     fetchDashboardData();
   }, [token]);
-  
-  console.log("data: ", dashboardData);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -62,10 +60,7 @@ const PTDashboardScreen = ({ navigation }) => {
       </View>
     );
   }
-  console.log(
-    "dashboardData.upcoming_sessions: ",
-    dashboardData.upcoming_sessions
-  );
+  
   return (
     <ScrollView
       style={styles.container}

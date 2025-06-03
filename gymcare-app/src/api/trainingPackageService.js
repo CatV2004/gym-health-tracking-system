@@ -19,7 +19,7 @@ export const fetchTrainingPackages = async (filters = {}, page = 1) => {
 export const fetchTypePackages = async () => {
   try {
     const response = await axios.get(`${API_BASE}/type-packages/`);
-    return response.data; // [{ value, label }, ...]
+    return response.data; 
   } catch (error) {
     console.error("Lỗi khi lấy danh sách type packages:", error);
     throw error;
