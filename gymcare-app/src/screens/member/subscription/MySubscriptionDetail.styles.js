@@ -123,6 +123,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  contactButton: {
+  backgroundColor: colors.primary,
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  borderRadius: 8,
+  marginTop: 10,
+  alignSelf: 'flex-start',
+  },
+  contactButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
 });
 
 export default styles;

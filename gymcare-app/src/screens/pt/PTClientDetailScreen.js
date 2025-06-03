@@ -17,6 +17,10 @@ import PTNavHeader from "../../components/pt/PTNavHeader";
 import PTProgressChart from "../../components/pt/PTProgressChart";
 import ClientProgressForm from "../../components/pt/ClientProgressForm";
 import styles from "./PTClientDetailScreen.styles";
+import { useNavigation } from "@react-navigation/native";
+import { ChatService } from "../../api/chatService";
+
+
 
 const PTClientDetailScreen = ({ route }) => {
   const { clientId } = route.params;
@@ -26,8 +30,12 @@ const PTClientDetailScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("progress");
+  const navigation = useNavigation();
 
+
+  
   useEffect(() => {
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -46,6 +54,26 @@ const PTClientDetailScreen = ({ route }) => {
 
     fetchData();
   }, [clientId, token]);
+
+  const user = useSelector((state) => state.auth.user); // bạn cần có thông tin user đang đăng nhập
+
+const handleUserPress = async (userOther) => {
+  try {
+    const { success, chatId } = await ChatService.getOrCreateChatRoom(
+      user.id,
+      userOther.id
+    );
+
+    if (success) {
+      navigation.navigate("ChatScreen", {
+        chatId,
+        otherUser: userOther,
+      });
+    }
+  } catch (error) {
+    console.error("Error creating chat:", error);
+  }
+};
 
   const handleSubmitProgress = async (formData) => {
     try {
@@ -111,6 +139,12 @@ const PTClientDetailScreen = ({ route }) => {
           <Text style={styles.infoText}>Chiều cao: {client.height} cm</Text>
           <Text style={styles.infoText}>Cân nặng: {client.weight} kg</Text>
           <Text style={styles.goalText}>Mục tiêu: {client.goal}</Text>
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={() => handleUserPress(client.user)}
+          >
+            <Text style={styles.contactButtonText}>Liên hệ</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

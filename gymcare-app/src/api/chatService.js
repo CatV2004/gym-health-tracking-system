@@ -197,4 +197,25 @@ export const ChatService = {
       return { success: false, error: error.message };
     }
   },
+
+   // Gọi API backend tạo hoặc lấy thread chat giữa user hiện tại và userId
+  openChatWithUser: async (userId, token) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE}/chat/open-thread/`,
+        { user_id: userId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      // Trả về dữ liệu thread từ backend
+      return response.data; 
+    } catch (error) {
+      console.error("Failed to open chat thread:", error);
+      throw error;
+    }
+  },
 };

@@ -999,7 +999,7 @@ class PaymentViewSet(viewsets.ViewSet):
 
 
 class PTDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTrainer]
 
     def get(self, request):
         user = request.user
