@@ -29,6 +29,35 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     zIndex: 2,
   },
+  notification: {
+    position: "absolute",
+    top: 45,
+    right: 16,
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    zIndex: 2,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
 
 export default styles;

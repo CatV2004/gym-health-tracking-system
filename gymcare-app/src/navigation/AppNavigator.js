@@ -21,6 +21,9 @@ import MemberScheduleScreen from "../screens/member/subscription/schedule/Member
 import TrainerWorkoutSchedulesScreen from "../screens/pt/TrainerWorkoutSchedulesScreen";
 import MySubscriptionDetail from "../screens/member/subscription/MySubscriptionDetail";
 import TodaySchedulesScreen from "../screens/pt/TodaySchedulesScreen";
+import NotificationsScreen from "../screens/member/Notification/NotificationScreen";
+import TrainingPackagesScreen from "../screens/member/home/package/TrainingPackagesScreen";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -48,6 +51,8 @@ export default function AppNavigator() {
           <Stack.Screen name="MySubscriptionDetail"component={MySubscriptionDetail}/>
           <Stack.Screen name="BookSession" component={BookSessionScreen} />
           <Stack.Screen name="MemberSchedule" component={MemberScheduleScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="TrainingPackages" component={TrainingPackagesScreen}/>
         </>
       )}
       {role === 1 && (

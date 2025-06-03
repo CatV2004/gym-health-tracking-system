@@ -1,4 +1,3 @@
-import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import RegisterButton from "../../buttons/RegisterButton";
 import Icon from "react-native-vector-icons/FontAwesome";

@@ -7,7 +7,9 @@ from datetime import timedelta
 from django.apps import apps
 from django.db import DatabaseError
 
-from gymcareapp.models import BaseModel, SubscriptionStatus, WorkoutSchedule, Notification, WorkoutScheduleStatus
+from gymcareapp.models import BaseModel, SubscriptionStatus, WorkoutSchedule, Notification, NotificationType, \
+    Subscription, WorkoutScheduleStatus
+from gymcareapp.services.notification_service import send_notification
 
 logger = logging.getLogger(__name__)
 
@@ -66,63 +68,99 @@ def send_email_async(subject, message, recipient_email):
 
 
 @shared_task
-def notify_upcoming_workouts():
+def send_workout_reminders():
+    logger.info("✅ Task send_workout_reminders đang chạy...")
     now = timezone.now()
-    start_time = now + timedelta(minutes=30)
-    end_time = now + timedelta(minutes=45)
+    one_hour_later = now + timedelta(hours=1)
 
-    schedules = WorkoutSchedule.objects.filter(
-        scheduled_at__range=(start_time, end_time),
-        status=0,
-        active=True
+    upcoming_sessions = WorkoutSchedule.objects.select_related(
+        'subscription__member__user',
+        'trainer__user'
+    ).filter(
+        scheduled_at__gte=now,
+        scheduled_at__lte=one_hour_later,
+        status=WorkoutScheduleStatus.SCHEDULED.value
     )
 
-    for schedule in schedules:
-        user = schedule.subscription.member.user
-        message = f"Bạn có buổi tập lúc {schedule.scheduled_at.strftime('%H:%M %d/%m/%Y')}."
-        Notification.objects.create(user=user, message=message)
-        send_mail(
-            "Nhắc nhở buổi tập",
-            message,
-            os.getenv("EMAIL_SEND"),
-            [user.email],
-            fail_silently=True,
-        )
+    for session in upcoming_sessions:
+        user = session.subscription.member.user
+        trainer_name = session.trainer.user.get_full_name() if session.trainer else "huấn luyện viên"
+        avatar_url = session.trainer.user.avatar.url if session.trainer and session.trainer.user.avatar else None
 
-@shared_task
-def notify_expiring_subscriptions():
-    today = timezone.now().date()
-    target = today + timedelta(days=3)
-    subs = Subscription.objects.filter(
-        end_date__range=(today, target),
-        status=SubscriptionStatus.ACTIVE,
-    )
-    for sub in subs:
-        user = sub.member.user
-        message = f"Gói tập của bạn sẽ hết hạn vào ngày {sub.end_date.strftime('%d/%m/%Y')}."
-        Notification.objects.create(user=user, message=message)
-        send_mail(
-            "Gói tập sắp hết hạn",
-            message,
-            os.getenv("EMAIL_SEND"),
-            [user.email],
-            fail_silently=True,
-        )
-
-@shared_task
-def expire_ended_subscriptions():
-    today = timezone.now().date()
-    expired = Subscription.objects.filter(
-        end_date__lt=today,
-        status=SubscriptionStatus.ACTIVE,
-    )
-    for sub in expired:
-        sub.status = SubscriptionStatus.EXPIRED
-        sub.save()
         Notification.objects.create(
-            user=sub.member.user,
-            message="Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục tập luyện.",
+            user=user,
+            message=f"Bạn có lịch tập với {trainer_name} lúc {session.scheduled_at.strftime('%H:%M %d/%m/%Y')}",
+            notification_type=NotificationType.WORKOUT_REMINDER.value,
+            related_object_id=session.id,
+            related_content_type=ContentType.objects.get_for_model(session),
+            image_url=avatar_url
         )
+
+        if user.email:
+            subject = f"Nhắc nhở lịch tập lúc {session.scheduled_at.strftime('%H:%M %d/%m/%Y')}"
+            message = f"""
+                        Xin chào {user.first_name},
+                        
+                        Bạn có lịch tập sắp diễn ra:
+                        - Thời gian: {session.scheduled_at.strftime('%H:%M %d/%m/%Y')}
+                        - Địa điểm: {session.location or 'Phòng tập chính'}
+                        
+                        Hãy chuẩn bị sẵn sàng cho buổi tập nhé!
+                                    """
+
+            send_email_async.delay(
+                subject=subject,
+                message=message.strip(),
+                recipient_email=user.email
+            )
+
+
+@shared_task
+def send_subscription_expiry_reminders():
+    now = timezone.now() + timedelta(hours=7)
+    three_days_later = now + timedelta(days=3)
+
+    expiring_subscriptions = Subscription.objects.select_related(
+        'member__user',
+        'plan'
+    ).filter(
+        end_date__gte=now.date(),
+        end_date__lte=three_days_later.date(),
+        status=SubscriptionStatus.ACTIVE.value
+    )
+
+    for subscription in expiring_subscriptions:
+        user = subscription.member.user
+        remaining_days = (subscription.end_date - now.date()).days
+        plan_name = subscription.plan.name
+        image_url = subscription.plan.image.url if subscription.plan.image else None
+
+        Notification.objects.create(
+            user=user,
+            message=f"Gói tập {plan_name} sẽ hết hạn sau {remaining_days} ngày",
+            notification_type=NotificationType.SUBSCRIPTION_EXPIRY.value,
+            related_object_id=subscription.id,
+            related_content_type=ContentType.objects.get_for_model(subscription),
+            image_url=image_url
+        )
+
+        if user.email:
+            subject = f"Thông báo gói tập sắp hết hạn ({remaining_days} ngày)"
+            message = f"""
+                        Xin chào {user.first_name},
+                        
+                        Gói tập của bạn sẽ hết hạn sau {remaining_days} ngày:
+                        - Ngày hết hạn: {subscription.end_date.strftime('%d/%m/%Y')}
+                        - Loại gói: {plan_name}
+                        
+                        Hãy gia hạn gói tập để tiếp tục sử dụng dịch vụ của chúng tôi!
+                                    """
+
+            send_email_async.delay(
+                subject=subject,
+                message=message.strip(),
+                recipient_email=user.email
+            )
 
 
 @shared_task

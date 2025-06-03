@@ -25,7 +25,9 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "READ_EXTERNAL_STORAGE", 
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ],
       "intentFilters": [
@@ -40,13 +42,44 @@
               "scheme": "vnpay"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "gymcareapp",
+              "host": "payment-return"
+            },
+            {
+              "scheme": "vnpay"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
-      ]
-      
+      ],
+      "package": "com.anonymous.gymcareapp",
+      "googleServicesFile": "./google-services.json",
+      "compileSdkVersion": 33
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ffdd5a4e-ec54-4108-9256-10d2b75e3f92"
+      }
+    },
+    "owner": "catv2004",
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
+    ]
   }
 }

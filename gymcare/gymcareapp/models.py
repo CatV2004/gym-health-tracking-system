@@ -10,7 +10,7 @@ from django.db import models
 from django.utils import timezone
 from enum import IntEnum, Enum
 import uuid
-
+from django.contrib.contenttypes.models import ContentType
 from django.utils.timezone import now
 
 class BaseModel(models.Model):
@@ -184,13 +184,6 @@ class WorkoutProgress(BaseModel):
         member_name = self.member.user.username if self.member else "Unknown Member"
         date_str = self.created_date.strftime('%Y-%m-%d') if self.created_date else "Unknown Date"
         return f"Progress of {member_name} on {date_str}"
-
-
-class Notification(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    message = models.TextField()
-    is_read = models.BooleanField(default=False)
-    sent_at = models.DateTimeField(auto_now_add=True)
 
 
 class SubscriptionStatus(models.IntegerChoices):
@@ -385,3 +378,97 @@ class Review(BaseModel):
 class Report(BaseModel):
     report_type = models.CharField(max_length=50, choices=[("REVENUE", "Doanh thu"), ("USAGE", "Sử dụng")])
     data = models.JSONField()
+
+
+
+class NotificationType(IntEnum):
+    WORKOUT_REMINDER = 0
+    SUBSCRIPTION_EXPIRY = 1
+    PROMOTION = 2
+    SCHEDULE_CHANGE = 3
+    PAYMENT_SUCCESS = 4
+    PAYMENT_FAILED = 5
+
+    @classmethod
+    def choices(cls):
+        return [(item.value, item.name.replace("_", " ").capitalize()) for item in cls]
+
+class Notification(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    notification_type = models.IntegerField(
+        choices=NotificationType.choices(),
+        default=NotificationType.WORKOUT_REMINDER.value
+    )
+    related_object_id = models.PositiveIntegerField(null=True, blank=True)
+    related_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["related_content_type", "related_object_id"]),
+        ]
+
+    @property
+    def related_object(self):
+        if self.related_content_type and self.related_object_id:
+            return self.related_content_type.get_object_for_this_type(pk=self.related_object_id)
+        return None
+
+    def mark_as_read(self):
+        self.is_read = True
+        self.save(update_fields=['is_read'])
+
+
+class Promotion(BaseModel):
+    title = models.CharField(max_length=255)
+    image = CloudinaryField('promotion_image', folder='gymcare/promotions')
+    description = models.TextField(null=True, blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    def clean(self):
+        if self.start_date and self.end_date and self.start_date >= self.end_date:
+            raise ValidationError({"end_date": "End date must be after start date."})
+
+        now = timezone.now()
+        if self.start_date and self.start_date > now and self.is_active:
+            self.is_active = False
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def status(self, obj):
+        now = timezone.now()
+        if not obj.start_date or not obj.end_date:
+            return format_html('<span style="color: gray;">Chưa có ngày</span>')
+
+        if now < obj.start_date:
+            return format_html('<span style="color: orange;">Sắp diễn ra</span>')
+        elif obj.start_date <= now <= obj.end_date:
+            return format_html('<span style="color: green;">Đang diễn ra</span>')
+        else:
+            return format_html('<span style="color: red;">Đã kết thúc</span>')
+
+
+class ProgressPrediction(models.Model):
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="predictions")
+    prediction_date = models.DateTimeField(auto_now_add=True)
+    predicted_weight = models.DecimalField(max_digits=5, decimal_places=2)
+    predicted_body_fat = models.DecimalField(max_digits=4, decimal_places=2)
+    predicted_muscle_mass = models.DecimalField(max_digits=5, decimal_places=2)
+    confidence = models.FloatField()  # Độ tin cậy của dự đoán (0-1)
+    next_check_date = models.DateField()  # Ngày đề nghị kiểm tra tiếp theo

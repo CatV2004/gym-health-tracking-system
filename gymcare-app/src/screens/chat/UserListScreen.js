@@ -30,6 +30,7 @@ const UserListScreen = ({ navigation }) => {
     const loadUsers = async () => {
       try {
         const result = await getAllUsers(accessToken);
+        
         if (result.success) {
           // Lọc bỏ user hiện tại
           const filteredUsers = result.data.filter(

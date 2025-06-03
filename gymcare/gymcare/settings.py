@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     'celery',
     'channels_redis',
     'django_flatpickr',
+    'fcm_django',
+    'progress_tracker',
 ]
 CKEDITOR_UPLOAD_PATH = "images/trainers/"
 import cloudinary.uploader
@@ -81,8 +83,6 @@ VNPAY_CONFIG = {
     "vnp_Url": os.getenv("VNP_URL"),
     "vnp_ReturnUrl": os.getenv("VNP_RETURNURL"),
 }
-print("RETURN URL:", os.getenv("VNP_RETURNURL"))
-
 
 ZALOPAY_CONFIG = {
     "app_id": os.getenv("ZALOPAY_APP_ID"),
@@ -147,7 +147,7 @@ TEMPLATES = [
 TIME = 86400
 
 WSGI_APPLICATION = 'gymcare.wsgi.application'
-
+ASGI_APPLICATION = 'gymcare.asgi.application'
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",

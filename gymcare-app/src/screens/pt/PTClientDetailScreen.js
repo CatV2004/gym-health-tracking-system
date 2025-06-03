@@ -12,11 +12,14 @@ import {
   getClientDetail,
   recordClientProgress,
   getClientProgressHistory,
+  getClientPrediction,
+  createAIPrediction,
 } from "../../api/pt/ptClientApi";
 import PTNavHeader from "../../components/pt/PTNavHeader";
 import PTProgressChart from "../../components/pt/PTProgressChart";
 import ClientProgressForm from "../../components/pt/ClientProgressForm";
 import styles from "./PTClientDetailScreen.styles";
+import PredictionCard from "./PredictionCard";
 
 const PTClientDetailScreen = ({ route }) => {
   const { clientId } = route.params;
@@ -26,6 +29,11 @@ const PTClientDetailScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("progress");
+  const [prediction, setPrediction] = useState(null);
+  const [predictionLoading, setPredictionLoading] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingProgress, setTrainingProgress] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,6 +54,54 @@ const PTClientDetailScreen = ({ route }) => {
 
     fetchData();
   }, [clientId, token]);
+
+  const fetchPrediction = async () => {
+    try {
+      setPredictionLoading(true);
+      const predictionData = await getClientPrediction(clientId, token);
+      setPrediction(predictionData);
+    } catch (err) {
+      console.error("Failed to fetch prediction:", err);
+      // Bạn có thể thêm xử lý hiển thị lỗi cho người dùng nếu cần
+      setError(err.message);
+    } finally {
+      setPredictionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (clientId && token) {
+      fetchPrediction();
+    }
+  }, [clientId, token]);
+  const handleStartTraining = async () => {
+    try {
+      setIsTraining(true);
+      setTrainingProgress(0);
+
+      const interval = setInterval(() => {
+        setTrainingProgress((prev) => {
+          const newProgress = prev + Math.random() * 10;
+          return newProgress >= 100 ? 100 : newProgress;
+        });
+      }, 300);
+
+      await createAIPrediction(clientId, token);
+
+      clearInterval(interval);
+      setTrainingProgress(100);
+      setShowSuccess(true);
+
+      setTimeout(() => setShowSuccess(false), 3000);
+
+      setTimeout(() => fetchPrediction(), 3500);
+    } catch (err) {
+      console.error("Training error:", err);
+      setError(err.message);
+    } finally {
+      setIsTraining(false);
+    }
+  };
 
   const handleSubmitProgress = async (formData) => {
     try {
@@ -133,6 +189,15 @@ const PTClientDetailScreen = ({ route }) => {
         >
           <Text style={styles.tabText}>Lịch sử</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "prediction" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("prediction")}
+        >
+          <Text style={styles.tabText}>Dự đoán</Text>
+        </TouchableOpacity>
       </View>
 
       {activeTab === "progress" ? (
@@ -156,7 +221,7 @@ const PTClientDetailScreen = ({ route }) => {
             }}
           />
         </ScrollView>
-      ) : (
+      ) : activeTab === "history" ? (
         <ScrollView style={styles.contentContainer}>
           {progressHistory.length > 0 ? (
             progressHistory.map((progress, index) => (
@@ -185,6 +250,17 @@ const PTClientDetailScreen = ({ route }) => {
           ) : (
             <Text style={styles.emptyText}>Chưa có dữ liệu tiến độ</Text>
           )}
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.contentContainer}>
+          <PredictionCard
+            prediction={prediction}
+            loading={predictionLoading}
+            onTrain={handleStartTraining}
+            isTraining={isTraining}
+            trainingProgress={trainingProgress}
+            showSuccess={showSuccess}
+          />
         </ScrollView>
       )}
     </View>

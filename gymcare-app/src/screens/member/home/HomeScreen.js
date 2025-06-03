@@ -17,12 +17,13 @@ import PromotionCarousel from "../../../components/home/PromotionCarousel";
 import categoryPackageService from "../../../api/categoryPackageService";
 import NewsSection from "../../../components/home/NewsSection";
 import GymReviewForm from "../../../components/home/GymReviewForm";
+import { Ionicons } from "@expo/vector-icons";
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useSelector((state) => state.auth);
   const [categories, setCategories] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-
+  const [unreadCount, setUnreadCount] = useState(0);
   const fetchCategories = async () => {
     try {
       const data = await categoryPackageService.fetchCategoryPackages();
@@ -31,16 +32,23 @@ const HomeScreen = ({ navigation }) => {
       console.error("Lỗi khi lấy danh mục gói tập:", error);
     }
   };
-
+  const fetchUnreadCount = async () => {
+    if (accessToken) {
+      const count = await fetchUnreadNotificationCount(accessToken);
+      setUnreadCount(count);
+    }
+  };
   useFocusEffect(
     useCallback(() => {
       fetchCategories();
+      fetchUnreadCount();
     }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchCategories();
+    await fetchUnreadCount();
     setRefreshing(false);
   };
 
@@ -57,12 +65,25 @@ const HomeScreen = ({ navigation }) => {
         <Text style={styles.welcomeText}>
           Xin chào {`${user?.first_name || "Bạn"} ${user?.last_name || ""}`}!
         </Text>
+        <View style={styles.notification}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notifications")}
+            style={styles.notificationButton}
+          >
+            <Ionicons name="notifications-outline" size={26} color="#fff" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <MessageSlider />
 
       <FlatList
-        data={[]} // Dữ liệu rỗng vì nội dung nằm trong ListHeaderComponent
+        data={[]} 
         renderItem={null}
         keyExtractor={() => Math.random().toString()}
         ListHeaderComponent={
@@ -70,9 +91,8 @@ const HomeScreen = ({ navigation }) => {
             <MenuGrid navigation={navigation} />
             <CategorySection navigation={navigation} categories={categories} />
             <PromotionCarousel />
-            <NewsSection />            
+            <NewsSection />
             <GymReviewForm />
-          
           </>
         }
         refreshing={refreshing}

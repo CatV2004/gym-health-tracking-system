@@ -9,6 +9,18 @@ const api = axios.create({
   },
 });
 
+export const getTrainers = async (page = 1) => {
+  try {
+    const response = await axios.get(`${API_BASE}/trainer/`, {
+      params: { page },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching trainers:', error);
+    throw error;
+  }
+};
+
 const trainerService = {
 
   getTrainerById: async (trainerId) => {
@@ -22,6 +34,6 @@ const trainerService = {
       throw new Error(error.response?.data?.detail || "Không thể lấy thông tin PT");
     }
   },
-};
+};s
 
 export default trainerService;
