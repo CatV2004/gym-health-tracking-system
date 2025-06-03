@@ -32,16 +32,15 @@ const UserListScreen = ({ navigation }) => {
         let result;
         let usersData;
 
-      if (user.role === 1) { // Nếu là PT (role = 1)
+      if (user.role === 1) {
         result = await getMemberOfTrainer(accessToken);
         usersData = result.data.map(member => member.user);
-      } else { // Các role khác
+      } else {
         result = await getAllUsers(accessToken);
         usersData = result.data;
       }
 
       if (result.success) {
-        // Lọc bỏ user hiện tại
         const filteredUsers = usersData.filter(
           (userOther) => user.id !== userOther.id
         );
