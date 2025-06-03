@@ -1,7 +1,42 @@
-import axios from 'axios';
-import { API_BASE } from '../../constants/config';
+import axios from "axios";
+import { API_BASE } from "../../constants/config";
 
 const API_URL = `${API_BASE}/trainer/my-members/`;
+
+export const getClientPrediction = async (clientId, token) => {
+  try {
+    const response = await axios.get(
+      `${API_BASE}/get-latest-prediction/`,
+      {
+        params: { member_id: clientId },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || "Failed to get prediction");
+  }
+};
+
+export const createAIPrediction = async (clientId, token) => {
+  const response = await fetch(`${API_BASE}/train-model/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ member_id: clientId }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get prediction");
+  }
+
+  return await response.json();
+};
 
 export const getClientDetail = async (clientId, token) => {
   try {
@@ -25,7 +60,7 @@ export const recordClientProgress = async (clientId, progressData, token) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );

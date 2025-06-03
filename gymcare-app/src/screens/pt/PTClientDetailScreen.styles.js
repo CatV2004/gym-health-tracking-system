@@ -131,13 +131,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   contactButton: {
-  backgroundColor: "#4CAF50",
-  paddingVertical: 10,
-  paddingHorizontal: 20,
-  borderRadius: 8,
-  marginTop: 12,
-  alignSelf: "flex-start",
-},
+    backgroundColor: "#4CAF50",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
 
   contactButtonText: {
     color: "#fff",
@@ -145,6 +145,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
+  tabContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 10,
+  },
+  tabButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  activeTab: {
+    backgroundColor: "#3498db",
+  },
+  tabText: {
+    color: "#333",
+  },
+  activeTabText: {
+    color: "white",
+  },
+  trainButton: {
+    backgroundColor: "#4A90E2",
+    borderRadius: 25,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    margin: 20,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  trainButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  progressContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  progressBar: {
+    height: 6,
+    width: "100%",
+    backgroundColor: "#E0E0E0",
+    borderRadius: 3,
+    marginVertical: 10,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 3,
+  },
+  progressText: {
+    color: "white",
+    fontSize: 12,
+  },
+  successOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+  },
+  successText: {
+    marginTop: 15,
+    fontSize: 18,
+    color: "#4CAF50",
+    fontWeight: "bold",
+  },
 });
 
 export default styles;

@@ -18,7 +18,7 @@ import colors from "../../constants/colors";
 
 const UserListScreen = ({ navigation }) => {
   const [users, setUsers] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user, accessToken } = useSelector((state) => state.auth);
@@ -31,23 +31,23 @@ const UserListScreen = ({ navigation }) => {
       try {
         let result;
         let usersData;
+        
+        if (user.role === 1) {
+          result = await getMemberOfTrainer(accessToken);
+          usersData = result.data.map((member) => member.user);
+        } else {
+          result = await getAllUsers(accessToken);
+          usersData = result.data;
+        }
 
-      if (user.role === 1) {
-        result = await getMemberOfTrainer(accessToken);
-        usersData = result.data.map(member => member.user);
-      } else {
-        result = await getAllUsers(accessToken);
-        usersData = result.data;
-      }
-
-      if (result.success) {
-        const filteredUsers = usersData.filter(
-          (userOther) => user.id !== userOther.id
-        );
-        setUsers(filteredUsers);
-      } else {
-        setError(result.error || "Failed to load users");
-      }
+        if (result.success) {
+          const filteredUsers = usersData.filter(
+            (userOther) => user.id !== userOther.id
+          );
+          setUsers(filteredUsers);
+        } else {
+          setError(result.error || "Failed to load users");
+        }
       } catch (err) {
         setError("Failed to load users");
       } finally {
@@ -94,18 +94,20 @@ const UserListScreen = ({ navigation }) => {
 
   const renderUserItem = ({ item, index }) => {
     const delay = index * 100;
-  
+
     return (
       <Animated.View
         style={{
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
           transform: [
-            { translateX: slideAnim.interpolate({
+            {
+              translateX: slideAnim.interpolate({
                 inputRange: [0, 30],
                 outputRange: [0, 30 - index * 3],
-            })}
-          ]
+              }),
+            },
+          ],
         }}
       >
         <TouchableOpacity
@@ -123,7 +125,7 @@ const UserListScreen = ({ navigation }) => {
           />
           <View style={styles.userInfo}>
             <Text style={styles.userName}>
-            {item.first_name || "ADMIN"} {item.last_name}
+              {item.first_name || "ADMIN"} {item.last_name}
             </Text>
             <Text style={styles.role}>{getRoleName(item.role)}</Text>
           </View>

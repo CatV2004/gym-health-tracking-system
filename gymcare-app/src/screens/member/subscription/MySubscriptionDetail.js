@@ -159,8 +159,7 @@ const MySubscriptionDetail = ({ route, navigation }) => {
   const ptName = `${subscription.training_package.pt.user.first_name} ${subscription.training_package.pt.user.last_name}`;
   const canRatePackage = subscription.status !== 1 && !subscription.user_has_rated;
   const canRateTrainer = subscription.status !== 1 && !subscription.training_package.pt.user_has_rated;
-  // console.log("subscription.training_package.pt: ",subscription.training_package.pt)
-
+  console.log("subscription.training_package.pt: ",subscription.training_package.pt)
   return (
     <ScrollView 
       style={styles.container}
@@ -204,7 +203,7 @@ const MySubscriptionDetail = ({ route, navigation }) => {
               <Text style={styles.contactButtonText}>Liên lạc</Text>
             </TouchableOpacity>
             
-            
+          
             {subscription.training_package.pt.average_rating > 0 && (
               <View style={styles.ratingContainer}>
                 <Icon name="star" size={16} color={colors.warning} />

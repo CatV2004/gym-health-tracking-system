@@ -6,8 +6,6 @@ import { useSelector } from "react-redux";
 import HomeScreen from "../screens/member/home/HomeScreen";
 import LoginScreen from "../screens/Auth/LoginScreen";
 import AccountScreen from "../screens/member/Account/AccountScreen";
-import ChatScreen from "../screens/chat/ChatScreen";
-import ChatStackNavigator from "./ChatStackNavigator";
 import UserListScreen from "../screens/chat/UserListScreen";
 import PTDashboardScreen from "../screens/pt/PTDashboardScreen";
 import SubscriptionStack from "./SubscriptionStack";
@@ -52,9 +50,9 @@ export default function BottomTabNavigator({ navigation }) {
         component={
           accessToken
             ? user?.role === 1
-              ? PTDashboardScreen 
-              : HomeScreen 
-            : HomeScreen 
+              ? PTDashboardScreen
+              : HomeScreen
+            : HomeScreen
         }
       />
       {accessToken ? (
@@ -74,6 +72,7 @@ export default function BottomTabNavigator({ navigation }) {
             </>
           )}
           <Tab.Screen name="Chat" component={UserListScreen} />
+          
           <Tab.Screen name="Account" component={AccountScreen} />
         </>
       ) : (

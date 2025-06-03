@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "414114503967",
+    "project_id": "gymcare-f65b0",
+    "storage_bucket": "gymcare-f65b0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:414114503967:android:329a2807807f2a0c04e42a",
+        "android_client_info": {
+          "package_name": "com.anonymous.gymcareapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4CA7TPkn7gu7OFVkmSdrYJCKK0Ao4xcg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

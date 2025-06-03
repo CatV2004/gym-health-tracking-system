@@ -25,7 +25,14 @@ from .permissions import *
 import json
 import uuid
 from .utils.vnpay_helper import VNPay, VNPayDatabase, get_client_ip
-from .serializers import UserSerializer, CurrentUserSerializer,PaymentCreateSerializer,PaymentSerializer,SubscriptionSerializer,SubscriptionCreateSerializer,PaymentRequestSerializer,WorkoutProgressSerializer,PTDashboardSerializer,ReviewSerializer,WorkoutScheduleSerializer,MemberResponseToChangeRequestSerializer,ReviewDisplaySerializer,MemberSerializer,MemberHealthUpdateSerializer,VNPayCreateSerializer,PriorityMemberSerializer,PaymentResponseSerializer,WorkoutScheduleChangeRequestSerializer,PaymentForm,CategoryPackageSerializer,ChangePasswordSerializer,MemberRegisterSerializer,TrainingPackageDetailSerializer,TrainerSerializer,TrainerRegisterSerializer,UpdateUserSerializer,TrainingPackageSerializer
+from .serializers import UserSerializer, CurrentUserSerializer, PaymentCreateSerializer, PaymentSerializer, \
+    SubscriptionSerializer, SubscriptionCreateSerializer, PaymentRequestSerializer, WorkoutProgressSerializer, \
+    PTDashboardSerializer, ReviewSerializer, WorkoutScheduleSerializer, MemberResponseToChangeRequestSerializer, \
+    ReviewDisplaySerializer, MemberSerializer, MemberHealthUpdateSerializer, VNPayCreateSerializer, \
+    PriorityMemberSerializer, PaymentResponseSerializer, WorkoutScheduleChangeRequestSerializer, PaymentForm, \
+    CategoryPackageSerializer, ChangePasswordSerializer, MemberRegisterSerializer, TrainingPackageDetailSerializer, \
+    TrainerSerializer, TrainerRegisterSerializer, UpdateUserSerializer, TrainingPackageSerializer, \
+    NotificationSerializer, PromotionSerializer, TypePackageSerializer
 from django.db import transaction
 from .utils.zalopay_helper import ZaloPayHelper
 import requests
@@ -36,6 +43,8 @@ from django.conf import settings
 from datetime import datetime, timedelta
 from django.db.models import Q
 from cloudinary.uploader import upload
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 
 
 class ZaloPayOrderView(APIView):
@@ -186,7 +195,7 @@ class TrainerViewSet(mixins.CreateModelMixin,
                     mixins.RetrieveModelMixin,
                      viewsets.GenericViewSet):
     queryset = Trainer.objects.select_related("user").all()
-
+    pagination_class = Pagination
     def get_serializer_class(self):
         if self.action == 'create':
             return TrainerRegisterSerializer
@@ -209,13 +218,6 @@ class TrainerViewSet(mixins.CreateModelMixin,
                              'record_progress', 'get_progress_history', 'today_schedules']:
             return [IsTrainer()]
         return [IsAdmin()]
-
-    # def get_permissions(self):
-    #     if self.action == ['create','destroy','workout_schedules']:
-    #         return [AdminPermission()]
-    #     elif self.request.method in ['GET']:
-    #         return [permissions.AllowAny()]
-    #     return [IsAuthenticated(), IsAdminOrSelfTrainer()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -548,21 +550,68 @@ class CategoryPackageViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
+class TypePackageListView(viewsets.GenericViewSet, generics.ListAPIView):
+    serializer_class = TypePackageSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return [{"value": value, "label": label} for value, label in TypePackage.choices()]
+
+
 class TrainingPackageViewSet(viewsets.GenericViewSet, generics.RetrieveAPIView, generics.ListAPIView):
     queryset = TrainingPackage.objects.all()
     serializer_class = TrainingPackageSerializer
     pagination_class = Pagination
     parser_classes = [JSONParser, MultiPartParser]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = {
+        'type_package': ['exact'],
+        'category_package': ['exact'],
+        'pt': ['exact'],
+    }
+    search_fields = ['name']
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdmin()]
         return [permissions.AllowAny()]
 
-    # def get_serializer_class(self):
-    #     if self.action == 'subscribe':
-    #         return SubscriptionSerializer
-    #     return super().get_serializer_class()
+    def validate_int_param(self, param_name):
+        val = self.request.query_params.get(param_name)
+        if val is not None:
+            if not val.isdigit():
+                return False, Response(
+                    {"error": f"Tham số '{param_name}' phải là số nguyên hợp lệ."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return True, int(val)
+        return True, None
+
+    def list(self, request, *args, **kwargs):
+        for param in ['pt_id', 'category_id', 'type_package_id']:
+            valid, result = self.validate_int_param(param)
+            if not valid:
+                return result
+
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query_params = self.request.query_params
+
+        pt_id = query_params.get('pt_id', None)
+        if pt_id and pt_id.isdigit():
+            queryset = queryset.filter(pt__id=int(pt_id))
+
+        category_id = query_params.get('category_id', None)
+        if category_id and category_id.isdigit():
+            queryset = queryset.filter(category_package__id=int(category_id))
+
+        type_package_id = query_params.get('type_package_id')
+        if type_package_id and type_package_id.isdigit():
+            queryset = queryset.filter(type_package=int(type_package_id))
+
+        return queryset.select_related('pt', 'category_package')
 
     def get_member(self, request):
         user = request.user
@@ -1070,6 +1119,80 @@ class ReviewViewSet(viewsets.ViewSet, generics.CreateAPIView):
         page = paginator.paginate_queryset(replies, request)
         serializer = ReviewDisplaySerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
+
+
+class PromotionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Promotion.objects.filter(is_active=True).order_by('-start_date')
+    serializer_class = PromotionSerializer
+    lookup_field = 'id'
+
+
+class NotificationViewSet(viewsets.GenericViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = Pagination
+
+    def get_queryset(self):
+        try:
+            return Notification.objects.filter(
+                user=self.request.user,
+                deleted_date__isnull=True
+            ).order_by('-sent_at')
+        except Exception as e:
+            print(f"Error getting notifications: {str(e)}")
+            return Notification.objects.none()
+
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data if queryset.exists() else [])
+
+        except Exception as e:
+            print(f"Error listing notifications: {str(e)}")
+            return Response({"data": [], "count": 0}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'])
+    def mark_as_read(self, request, pk=None):
+        try:
+            notification = get_object_or_404(
+                Notification,
+                pk=pk,
+                user=request.user,
+                deleted_date__isnull=True
+            )
+            notification.mark_as_read()
+            return Response(self.get_serializer(notification).data)
+        except Exception as e:
+            print(f"Error marking notification as read: {str(e)}")
+            return Response(
+                {"detail": "Not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        try:
+            updated = request.user.notifications.filter(
+                is_read=False,
+                deleted_date__isnull=True
+            ).update(is_read=True)
+            return Response({
+                "status": "success",
+                "marked_count": updated
+            })
+        except Exception as e:
+            print(f"Error marking all notifications as read: {str(e)}")
+            return Response({
+                "status": "error",
+                "detail": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 #--------------------------------------------------------------------------------#

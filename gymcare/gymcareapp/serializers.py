@@ -6,7 +6,7 @@ from rest_framework.serializers import ModelSerializer, Serializer
 from django.utils import timezone
 from .models import User, Trainer, Role, Member, WorkoutSchedule, TrainingType, WorkoutScheduleStatus, \
     WorkoutScheduleChangeRequest, TrainingPackage, Subscription, CategoryPackage, SubscriptionStatus, Payment, \
-    WorkoutProgress, Review, ChangeRequestStatus
+    WorkoutProgress, Review, ChangeRequestStatus, Notification, Promotion
 from .tasks import send_email_async
 from datetime import timedelta
 from django.db.models import Q
@@ -451,6 +451,11 @@ class TrainingPackageDetailSerializer(TrainingPackageSerializer):
         fields = TrainingPackageSerializer.Meta.fields + ['subscribed']
 
 
+class TypePackageSerializer(serializers.Serializer):
+    value = serializers.IntegerField()
+    label = serializers.CharField()
+
+
 class SubscriptionSerializer(serializers.ModelSerializer):
     training_package = TrainingPackageSerializer()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -881,3 +886,67 @@ class PaymentResponseSerializer(serializers.Serializer):
     vnp_OrderInfo = serializers.CharField()
     vnp_ResponseCode = serializers.CharField()
     vnp_TransactionStatus = serializers.CharField()
+
+
+class PromotionSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Promotion
+        fields = [
+            'id', 'title', 'description',
+            'image_url', 'start_date', 'end_date',
+            'is_active', 'status'
+        ]
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+
+    def get_status(self, obj):
+        from django.utils import timezone
+        now = timezone.now()
+
+        if not obj.start_date or not obj.end_date:
+            return 'Chưa thiết lập'
+        if now < obj.start_date:
+            return 'Sắp diễn ra'
+        elif obj.start_date <= now <= obj.end_date:
+            return 'Đang diễn ra'
+        else:
+            return 'Đã kết thúc'
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    related_object = serializers.SerializerMethodField()
+    notification_type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'message',
+            'is_read',
+            'sent_at',
+            'notification_type',
+            'notification_type_display',
+            'related_object_id',
+            'related_object'
+        ]
+        read_only_fields = fields
+
+    def get_related_object(self, obj):
+        if not obj.related_object:
+            return None
+
+        if hasattr(obj.related_object, 'title'):  # Cho Promotion
+            return {
+                'id': obj.related_object.id,
+                'title': obj.related_object.title,
+                'image_url': obj.related_object.image.url if obj.related_object.image else None
+            }
+        return str(obj.related_object)
+
+

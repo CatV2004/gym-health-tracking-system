@@ -3,7 +3,7 @@ from django.urls import reverse
 from collections import Counter
 from datetime import timedelta
 from django.db import transaction
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.forms import UserChangeForm
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Count, Q, Case, When, Value, CharField, Avg
@@ -670,6 +670,112 @@ class ReviewAdmin(BaseAdmin):
         }),
     )
 
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'display_image', 'start_date', 'end_date', 'status', 'is_active')
+    list_filter = ('is_active', 'start_date', 'end_date')
+    search_fields = ('title', 'description')
+    date_hierarchy = 'start_date'
+    ordering = ('-start_date',)
+    readonly_fields = ('status',)
+    fieldsets = (
+        (None, {
+            'fields': ('title', 'image', 'description')
+        }),
+        ('Thời gian', {
+            'fields': ('start_date', 'end_date', 'status')
+        }),
+        ('Trạng thái', {
+            'fields': ('is_active',)
+        }),
+    )
+
+    def display_image(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="100" />', obj.image.url)
+        return "No Image"
+    display_image.short_description = 'Hình ảnh'
+
+    def status(self, obj):
+        now = localtime()
+
+        if not obj.start_date or not obj.end_date:
+            return format_html('<span style="color: gray;">Chưa thiết lập</span>')
+
+        if now < obj.start_date:
+            return format_html('<span style="color: orange;">Sắp diễn ra</span>')
+        elif obj.start_date <= now <= obj.end_date:
+            return format_html('<span style="color: green;">Đang diễn ra</span>')
+        else:
+            return format_html('<span style="color: red;">Đã kết thúc</span>')
+    status.short_description = 'Trạng thái'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        now = localtime()
+        # Tự động cập nhật trạng thái is_active
+        for promotion in qs:
+            if promotion.start_date <= now <= promotion.end_date and not promotion.is_active:
+                promotion.is_active = True
+                promotion.save()
+            elif (now < promotion.start_date or now > promotion.end_date) and promotion.is_active:
+                promotion.is_active = False
+                promotion.save()
+        return qs
+
+    def save_model(self, request, obj, form, change):
+        now = localtime()
+        if obj.start_date <= now <= obj.end_date:
+            obj.is_active = True
+        else:
+            obj.is_active = False
+        super().save_model(request, obj, form, change)
+
+        if (not change or (change and 'is_active' in form.changed_data and obj.is_active)):
+            self._create_notifications_for_promotion(obj)
+            self._send_emails_for_promotion(obj)
+            messages.success(request, f"Đã tạo promotion và gửi thông báo đến tất cả thành viên!")
+
+    def _create_notifications_for_promotion(self, promotion):
+        members = Member.objects.all()
+        content_type = ContentType.objects.get_for_model(promotion)
+
+        notifications = []
+        for member in members:
+            notifications.append(Notification(
+                user=member.user,
+                message=f"Khuyến mãi mới: {promotion.title}",
+                notification_type=NotificationType.PROMOTION.value,
+                related_object_id=promotion.id,
+                related_content_type=content_type
+            ))
+        Notification.objects.bulk_create(notifications)
+
+    def _send_emails_for_promotion(self, promotion):
+        members = Member.objects.select_related('user').all()
+
+        subject = f"Khuyến mãi mới: {promotion.title}"
+        message = f"""
+        Chào bạn,
+
+        Chúng tôi xin thông báo về chương trình khuyến mãi mới:
+
+        Tiêu đề: {promotion.title}
+        Thời gian: Từ {promotion.start_date.strftime('%d/%m/%Y')} đến {promotion.end_date.strftime('%d/%m/%Y')}
+        Mô tả: {promotion.description}
+
+        Hãy truy cập app để xem chi tiết!
+        """
+
+        for member in members:
+            if member.user.email:
+                send_email_async.delay(
+                    subject=subject,
+                    message=message,
+                    recipient_email=member.user.email
+                )
+
 my_admin_site.register(User, UserAdmin)
 my_admin_site.register(Trainer, TrainerAdmin)
 my_admin_site.register(Member, MemberAdmin)
@@ -680,4 +786,6 @@ my_admin_site.register(Payment, PaymentAdmin)
 my_admin_site.register(WorkoutProgress, WorkoutProgressAdmin)
 my_admin_site.register(WorkoutSchedule, WorkoutScheduleAdmin)
 my_admin_site.register(Review, ReviewAdmin)
+my_admin_site.register(Promotion, PromotionAdmin)
+
 

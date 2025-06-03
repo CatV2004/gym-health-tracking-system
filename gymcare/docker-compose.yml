@@ -92,6 +92,22 @@ services:
       - app_network
     restart: unless-stopped
 
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    command: celery -A gymcare beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    networks:
+      - app_network
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   redis_data:
