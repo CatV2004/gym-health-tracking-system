@@ -1,9 +1,9 @@
 
-export const API_BASE = "http://192.168.1.8:8000";
-export const CLIENT_ID = "GyIvpsq8lhVEpF7vrWRJLQYNPKyxEpXWw2Nbx25a";
+export const API_BASE = "http://192.168.1.60:8000";
+export const CLIENT_ID = "5D5A9dMK8b4oLGbipPFJFtJDN1TrjXckWdBjUFjj";
 
 export const CLIENT_SECRET =
-  "SJ1ytyca1WxtYGAZelieQz5W19oZJGqNBRnlORYlSYMCigBjBQk4347LDd0x3lKOA1na9iA2XBi5SGT24Q4m4O93bMAB85RpJNoeGWYvOEVi6Sf8dlGEoEPfuXOA1zEc";
+  "y5AH974Tj5DS9whcQKU5w7bYrVvFSPDrkd7eg1roP1NIhLYJbPfQdShBEu0JJlta6G3Lw7CfgHkVariWaXlfAU5NrdK4TZJfC4oom75R3HpHsLn2Zcu3retfoK2UgdaO";
 
 export const VNPAY_RETURN_URL_SCHEME = "gymcareapp://payment-return"; 
 export const VNPAY_SANDBOX_MODE = true; 

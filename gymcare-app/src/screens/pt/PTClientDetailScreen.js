@@ -281,6 +281,9 @@ const PTClientDetailScreen = ({ route }) => {
         </ScrollView>
       ) : (
         <ScrollView style={styles.contentContainer}>
+        {predictionLoading ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : prediction ? (
           <PredictionCard
             prediction={prediction}
             loading={predictionLoading}
@@ -289,7 +292,20 @@ const PTClientDetailScreen = ({ route }) => {
             trainingProgress={trainingProgress}
             showSuccess={showSuccess}
           />
-        </ScrollView>
+        ) : (
+          <View style={styles.emptyPredictionContainer}>
+            <Text style={styles.emptyText}>
+              Chưa có dữ liệu dự đoán cho hội viên này.
+            </Text>
+            <TouchableOpacity
+              onPress={handleStartTraining}
+              style={styles.trainButton}
+            >
+              <Text style={styles.trainButtonText}>Bắt đầu huấn luyện AI</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
       )}
     </View>
   );
