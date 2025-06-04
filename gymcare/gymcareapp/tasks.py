@@ -6,18 +6,16 @@ from django.utils import timezone
 from datetime import timedelta
 from django.apps import apps
 from django.db import DatabaseError
-
 from gymcareapp.models import BaseModel, SubscriptionStatus, WorkoutSchedule, Notification, NotificationType, \
     Subscription, WorkoutScheduleStatus
 from gymcareapp.services.notification_service import send_notification
-
 logger = logging.getLogger(__name__)
 
 
 @shared_task
 def delete_permanently_after_30_days():
     try:
-        celery_logger.info("Starting task: delete_permanently_after_30_days")
+        logger.info("✅ Task delete_permanently_after_30_days đang chạy..." + timezone.now())
 
         all_models = apps.get_models()
         thirty_days_ago = timezone.now() - timedelta(days=30)  # 30 days ago timestamp
@@ -69,7 +67,7 @@ def send_email_async(subject, message, recipient_email):
 
 @shared_task
 def send_workout_reminders():
-    logger.info("✅ Task send_workout_reminders đang chạy...")
+    logger.info("✅ Task send_workout_reminders đang chạy..." + timezone.now())
     now = timezone.now()
     one_hour_later = now + timedelta(hours=1)
 
@@ -117,6 +115,7 @@ def send_workout_reminders():
 
 @shared_task
 def send_subscription_expiry_reminders():
+    logger.info("✅ Task send_subscription_expiry_reminders đang chạy..." + timezone.now())
     now = timezone.now() + timedelta(hours=7)
     three_days_later = now + timedelta(days=3)
 
@@ -165,6 +164,7 @@ def send_subscription_expiry_reminders():
 
 @shared_task
 def update_workout_schedule_status():
+    logger.info("✅ Task update_workout_schedule_status đang chạy..." + timezone.now())
     try:
         now = timezone.now()
         buffer_time = now - timedelta(hours=1)
@@ -194,6 +194,7 @@ def update_workout_schedule_status():
 
 @shared_task
 def update_subscription_status():
+    logger.info("✅ Task update_subscription_status đang chạy..." + timezone.now())
     try:
         now = timezone.now().date()
         expired_subs = Subscription.objects.filter(
@@ -219,8 +220,8 @@ def update_subscription_status():
 # Tự động xóa các lịch tập đã hủy trước đây 30 ngày
 @shared_task
 def delete_cancelled_workouts():
+    logger.info("✅ Task delete_cancelled_workouts đang chạy..." + timezone.now())
     try:
-
         thirty_days_ago = timezone.now() - timedelta(days=30)
 
         cancelled_workouts = WorkoutSchedule.objects.filter(

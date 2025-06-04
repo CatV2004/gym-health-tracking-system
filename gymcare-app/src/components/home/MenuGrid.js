@@ -1,15 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 
 const menuItems = [
-  { icon: 'barbell', label: 'Gói tập', route: 'PackageList' },
+  { icon: 'barbell', label: 'Gói tập', route: 'TrainingPackages' },
   { icon: 'fitness', label: 'Huấn luyện viên', route: 'TrainerList' },
-  { icon: 'heart', label: 'Sức khỏe', route: 'HealthStats' },
-  { icon: 'chatbox', label: 'Chat', route: 'ChatScreen' },  
+  { icon: 'medkit', label: 'Cập nhật sức khỏe', route: 'UpdateHealth' },
+  { icon: 'chatbox', label: 'Chat', route: 'UserListScreen' },
 ];
-
-const PRIMARY_COLOR = '#ef440ee8'; 
 
 const MenuGrid = ({ navigation }) => (
   <View style={styles.container}>
@@ -18,9 +17,10 @@ const MenuGrid = ({ navigation }) => (
         key={index}
         onPress={() => navigation.navigate(item.route)}
         style={styles.menuItem}
+        activeOpacity={0.7}
       >
         <View style={styles.iconContainer}>
-          <Ionicons name={item.icon} size={32} color={PRIMARY_COLOR} />
+          <Ionicons name={item.icon} size={32} color={styles.icon.color} />
         </View>
         <Text style={styles.label}>{item.label}</Text>
       </TouchableOpacity>
@@ -28,32 +28,41 @@ const MenuGrid = ({ navigation }) => (
   </View>
 );
 
+MenuGrid.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    marginVertical: 16,
-    paddingHorizontal: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   menuItem: {
+    width: '48%',
     alignItems: 'center',
-    margin: 8,
-    width: '20%', 
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   iconContainer: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 50,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
+  },
+  icon: {
+    color: '#FF6347',
   },
   label: {
-    fontSize: 12,
-    textAlign: 'center',
-    color: PRIMARY_COLOR,
+    fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

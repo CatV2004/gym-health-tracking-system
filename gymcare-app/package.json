@@ -40,6 +40,7 @@
     "react-native-animatable": "^1.4.0",
     "react-native-calendars": "^1.1312.0",
     "react-native-chart-kit": "^6.12.0",
+    "react-native-dropdown-picker": "^5.4.6",
     "react-native-gesture-handler": "^2.25.0",
     "react-native-gifted-chat": "^2.8.1",
     "react-native-html-to-pdf": "^0.12.0",

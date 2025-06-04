@@ -15,11 +15,13 @@ export const calculateEndDate = (startDate, quantity, type) => {
 
 export const toGmt7ISOString = (date) => {
   if (!(date instanceof Date)) {
-    throw new Error('Invalid date');
+    throw new Error("Invalid date");
   }
 
   const gmt7OffsetMs = 7 * 60 * 60 * 1000;
   const gmt7AdjustedDate = new Date(date.getTime() - gmt7OffsetMs);
+  // const gmt7AdjustedDate = new Date(date.getTime());
+
   return gmt7AdjustedDate.toISOString();
 };
 

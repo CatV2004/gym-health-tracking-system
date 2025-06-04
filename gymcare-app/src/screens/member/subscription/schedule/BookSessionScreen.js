@@ -62,12 +62,11 @@ const BookSessionScreen = () => {
       Alert.alert("Lỗi", "Vui lòng chọn thời gian trong tương lai");
       return;
     }
-
     const workoutData = {
-      subscription: packageId, 
-      training_type: trainingType, 
-      scheduled_at: scheduleDateTime.toISOString(), 
-      duration: duration, 
+      subscription: packageId,
+      training_type: trainingType,
+      scheduled_at: scheduleDateTime.toISOString(),
+      duration: duration,
     };
 
     try {

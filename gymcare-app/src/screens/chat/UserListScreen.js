@@ -31,7 +31,8 @@ const UserListScreen = ({ navigation }) => {
       try {
         let result;
         let usersData;
-        
+        console.log("user.role= ", user.role);
+
         if (user.role === 1) {
           result = await getMemberOfTrainer(accessToken);
           usersData = result.data.map((member) => member.user);

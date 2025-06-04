@@ -22,7 +22,7 @@ import TrainerWorkoutSchedulesScreen from "../screens/pt/TrainerWorkoutSchedules
 import MySubscriptionDetail from "../screens/member/subscription/MySubscriptionDetail";
 import TodaySchedulesScreen from "../screens/pt/TodaySchedulesScreen";
 import NotificationsScreen from "../screens/member/Notification/NotificationScreen";
-// import TrainingPackagesScreen from "../screens/member/home/package/TrainingPackagesScreen";
+import TrainingPackagesScreen from "../screens/member/home/package/TrainingPackagesScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -40,6 +40,8 @@ export default function AppNavigator() {
       <Stack.Screen name="PackagesOfCategory" component={PackagesOfCategoryScreen}/>
       <Stack.Screen name="PackageDetail" component={PackageDetailScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="TrainingPackages" component={TrainingPackagesScreen}/>
+
       {role === 2 && (
         <>
           <Stack.Screen name="UpdateHealth" component={HealthUpdateScreen} />
@@ -52,7 +54,6 @@ export default function AppNavigator() {
           <Stack.Screen name="BookSession" component={BookSessionScreen} />
           <Stack.Screen name="MemberSchedule" component={MemberScheduleScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          {/* <Stack.Screen name="TrainingPackages" component={TrainingPackagesScreen}/> */}
         </>
       )}
       {role === 1 && (
