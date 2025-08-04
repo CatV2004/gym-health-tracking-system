@@ -74,16 +74,16 @@ Dự án này giải quyết các thách thức trong việc quản lý thủ c�
 
 ## Công Nghệ Sử Dụng (Tech Stack)
 
-| Phần             | Công nghệ                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **Frontend** | `ReactJS` / `Next.js` / `VueJS` - `TypeScript` - `TailwindCSS` / `Material-UI`                            |
-| **Backend** | `Node.js` - `Express.js` / `NestJS`                                                                     |
-| **Database** | `MongoDB` / `PostgreSQL`                                                                                |
-| **Real-time** | `Firebase Realtime Database` / `Firestore` (cho tính năng Chat)                                         |
-| **Thanh Toán** | Tích hợp API `MoMo`, `VNPAY`                                                                            |
-| **Deployment** | `Vercel` (Frontend), `Heroku` / `AWS` / `DigitalOcean` (Backend)                                          |
-| **CI/CD** | `GitHub Actions`                                                                                        |
-| **State Mngmt** | `Redux Toolkit` / `Zustand` (cho React)                                                                 |
+| Phần             | Công nghệ                                                                                     |
+|------------------|-----------------------------------------------------------------------------------------------|
+| **Frontend**      | `React Native` – `TailwindCSS` / `NativeWind`                                                |
+| **Backend**       | `Django` – Django REST Framework                                                             |
+| **Database**      | `MySQL` / `MongoDB` (tùy theo cấu trúc lưu trữ và môi trường)                                |
+| **Real-time**     | `Firebase Realtime Database` / `Firestore` (cho tính năng Chat real-time)                    |
+| **Thanh Toán**    | Tích hợp API: `MoMo`, `VNPAY`                                                                 |
+| **Deployment**    | `Expo Go` / `APK Build` (Frontend), `Heroku` / `AWS` / `DigitalOcean` (Backend)             |
+| **CI/CD**         | `GitHub Actions`                                                                             |
+| **State Mngmt**   | `Redux Toolkit` / `Zustand` (quản lý trạng thái phía client)                                 |
 
 ---
 
