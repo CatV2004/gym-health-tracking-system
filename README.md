@@ -156,7 +156,7 @@ App will run via Expo or open in a simulator or physical device.
 
 ## Tác Giả
 
-- **[Nguyen Manh Cuong]** – Project Leader, Backend & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
+- **[Nguyen Manh Cuong (CatV2004)]** – Project Leader, Backend & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
 
 
 
