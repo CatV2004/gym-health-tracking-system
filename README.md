@@ -18,9 +18,7 @@ Một giải pháp phần mềm toàn diện được thiết kế để số h�
 - [Công Nghệ Sử Dụng (Tech Stack)](#công-nghệ-sử-dụng-tech-stack)
 - [Hướng Dẫn Cài Đặt](#hướng-dẫn-cài-đặt)
 - [Cách Sử Dụng](#cách-sử-dụng)
-- [Đóng Góp](#đóng-góp)
 - [Tác Giả](#tác-giả)
-- [Giấy Phép](#giấy-phép)
 
 ---
 
