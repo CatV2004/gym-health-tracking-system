@@ -80,12 +80,12 @@ This project addresses the challenges of manual management in gyms, such as trac
 |------------------|-----------------------------------------------------------------------------------------------|
 | **Frontend**      | `React Native` – `TailwindCSS` / `NativeWind`                                                |
 | **Backend**       | `Django` – Django REST Framework                                                             |
-| **Database**      | `MySQL` / `MongoDB` (depending on structure & environment)                                   |
-| **Real-time**     | `Firebase Realtime Database` / `Firestore` (used for real-time chat)                         |
+| **Database**      | `MySQL` – used for structured relational data (users, subscriptions, workout logs, etc.)     |
+| **Real-time**     | `Firestore` (used for real-time chat)                         |
 | **Payments**      | Integrated APIs: `MoMo`, `VNPAY`                                                              |
-| **Deployment**    | `Expo Go` / APK Build (Frontend), `Heroku` / `AWS` / `DigitalOcean` (Backend)               |
+| **Deployment**    | `Expo Go`              |
 | **CI/CD**         | `GitHub Actions`                                                                             |
-| **State Management** | `Redux Toolkit` / `Zustand`                                                               |
+| **State Management** | `Redux Toolkit`                                                           |
 
 ---
 
