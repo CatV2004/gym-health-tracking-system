@@ -154,7 +154,7 @@ npm run dev
 
 ## 👨‍💻 Tác Giả
 
-- **[Nguyen Manh Cuong]** – Project Leader & Backend Developer & Frontend Developer – [GitHub Profile](https://github.com/nguyenmanhc261)
+- **[Nguyen Manh Cuong]** – Project Leader & Backend Developer & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
 
 
 
