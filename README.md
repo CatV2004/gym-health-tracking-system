@@ -78,7 +78,7 @@ This project addresses the challenges of manual management in gyms, such as trac
 
 | Area             | Technologies                                                                                  |
 |------------------|-----------------------------------------------------------------------------------------------|
-| **Frontend**      | `React Native` – `TailwindCSS` / `NativeWind`                                                |
+| **Frontend**      | `React Native` – `TailwindCSS`                                             |
 | **Backend**       | `Django` – Django REST Framework                                                             |
 | **Database**      | `MySQL` – used for structured relational data (users, subscriptions, workout logs, etc.)     |
 | **Real-time**     | `Firestore` (used for real-time chat)                         |
