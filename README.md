@@ -140,10 +140,14 @@ JWT_SECRET="your_super_secret_key"
 
 ```bash
 cd gymcare
-python manage.py runserver 0.0.0.0:8000
+docker-compose up --build
 ```
 
-Server will be accessible at: http://localhost:8000
+This will start:
+- Django backend at: http://localhost:8000
+- MySql service
+- (Optionally) admin tools like pgAdmin if defined in docker-compose.yml
+
 
 **1. Run Frontend (React Native):**
 
@@ -153,6 +157,22 @@ npm run dev
 ```
 
 App will run via Expo or open in a simulator or physical device.
+
+## 🔧 Docker Tips
+- To run in detached mode:
+  ```bash
+  docker-compose up -d
+  ```
+  
+- To stop and remove containers:
+  ```bash
+  docker-compose down
+  ```
+  
+- To apply environment changes:
+  ```bash
+  docker-compose up --build
+  ```
 
 ## Tác Giả
 
