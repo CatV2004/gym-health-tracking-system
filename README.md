@@ -150,7 +150,7 @@ npm run dev
 Ứng dụng sẽ mở tại http://localhost:3000.
 
 
-## 👨‍💻 Tác Giả
+## Tác Giả
 
 - **[Nguyen Manh Cuong]** – Project Leader & Backend Developer & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
 
