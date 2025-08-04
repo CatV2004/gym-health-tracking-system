@@ -1,126 +1,131 @@
-# Hệ Thống Quản Lý Phòng Gym & Theo Dõi Sức Khỏe Toàn Diện
+# 🏋️‍♂️ Comprehensive Gym Management & Health Tracking System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-username/your-repo)
-[![Stars](https://img.shields.io/github/stars/your-username/your-repo)](https://github.com/your-username/your-repo/stargazers)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/catv2004/gymcare)
+[![Stars](https://img.shields.io/github/stars/catv2004/gymcare)](https://github.com/catv2004/gymcare/stargazers)
 
-Một giải pháp phần mềm toàn diện được thiết kế để số hóa và tối ưu hóa hoạt động của phòng gym, đồng thời nâng cao trải nghiệm tập luyện cho hội viên. Hệ thống kết nối liền mạch giữa **Quản Lý**, **Huấn Luyện Viên (PT)** và **Hội Viên** trên một nền tảng duy nhất.
+A full-featured software solution designed to digitize and optimize gym operations while enhancing the training experience for members. The system seamlessly connects **Managers**, **Personal Trainers (PTs)**, and **Members** on a unified platform.
 
 ![Project Banner](https://images.unsplash.com/photo-1571902943202-507ec2618e8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Z3ltLGludGVyaW9yLHdlaWdodHN8fHx8fHwxNzIzNTQyMzYy&ixlib=rb-4.0.3&q=80&utm_campaign=api-credit&utm_medium=referral&utm_source=unsplash_source&w=1080)
 
 ---
 
-## MỤC LỤC
+## 📑 Table of Contents
 
-- [Tổng Quan](#tổng-quan)
-- [Tính Năng Nổi Bật](#tính-năng-nổi-bật)
-- [Luồng Hoạt Động Người Dùng](#luồng-hoạt-động-người-dùng)
-- [Công Nghệ Sử Dụng (Tech Stack)](#công-nghệ-sử-dụng-tech-stack)
-- [Hướng Dẫn Cài Đặt](#hướng-dẫn-cài-đặt)
-- [Cách Sử Dụng](#cách-sử-dụng)
-- [Tác Giả](#tác-giả)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [User Workflow](#user-workflow)
+- [Tech Stack](#tech-stack)
+- [Installation Guide](#installation-guide)
+- [Usage](#usage)
+- [Author](#author)
 
 ---
 
-## Tổng Quan
+## 📌 Overview
 
-Dự án này giải quyết các thách thức trong việc quản lý thủ công tại các phòng gym như quản lý hội viên, sắp xếp lịch tập, theo dõi thanh toán và tương tác giữa các bên. Bằng cách cung cấp một nền tảng tập trung, hệ thống giúp tiết kiệm thời gian, giảm thiểu sai sót và mang lại dịch vụ chuyên nghiệp hơn cho khách hàng.
+This project addresses the challenges of manual management in gyms, such as tracking members, scheduling sessions, processing payments, and communication between stakeholders. By offering a centralized platform, the system saves time, reduces errors, and delivers a more professional service to customers.
 
-## Tính Năng Nổi Bật
+---
+
+## ✨ Key Features
 
 <details>
-<summary><strong> dành cho Quản Lý Phòng Gym</strong></summary>
+<summary><strong>👨‍💼 For Gym Managers</strong></summary>
 
--   📊 **Thống Kê & Báo Cáo:** Xem báo cáo trực quan về doanh thu, số lượng hội viên mới, mức độ sử dụng phòng tập theo giờ/ngày/tháng.
--   📦 **Quản Lý Gói Tập:** Dễ dàng tạo, chỉnh sửa, và quản lý các gói tập (tháng, quý, năm) với giá, quyền lợi, và số buổi tập kèm PT.
--   👥 **Quản Lý Tài Khoản:** Quản lý thông tin và phân quyền cho các tài khoản Huấn luyện viên và Hội viên.
--   💬 **Hỗ Trợ & Tương Tác:** Nhận và xử lý các yêu cầu hỗ trợ từ hội viên qua hệ thống chat.
+- 📊 **Analytics & Reports**: Visual reports on revenue, new members, usage by hour/day/month.
+- 📦 **Training Packages Management**: Create and manage training packages with pricing, benefits, and PT sessions.
+- 👥 **User Account Management**: Manage and assign roles for Trainers and Members.
+- 💬 **Support & Interaction**: Receive and respond to member support requests via live chat.
 
 </details>
 
 <details>
-<summary><strong> dành cho Huấn Luyện Viên (PT)</strong></summary>
+<summary><strong>🏋️ For Personal Trainers (PTs)</strong></summary>
 
--   🗓️ **Quản Lý Lịch Tập:** Xem, duyệt, hoặc đề xuất thay đổi lịch hẹn từ hội viên.
--   📈 **Theo Dõi Tiến Độ:** Cập nhật các chỉ số cơ thể (cân nặng, cơ, mỡ) và tiến độ tập luyện của hội viên. Biểu đồ hóa quá trình để hội viên dễ theo dõi.
--   💬 **Chat Thời Gian Thực:** Tương tác, tư vấn và trả lời câu hỏi của hội viên mọi lúc mọi nơi qua Firebase Chat.
+- 🗓️ **Schedule Management**: View, approve, or suggest changes to member sessions.
+- 📈 **Progress Tracking**: Record body metrics (weight, fat, muscle) and progress charts for easy visualization.
+- 💬 **Real-Time Chat**: Interact with members anytime using Firebase Chat.
 
 </details>
 
 <details>
-<summary><strong> dành cho Hội Viên</strong></summary>
+<summary><strong>🧘 For Members</strong></summary>
 
--   👤 **Hồ Sơ Sức Khỏe:** Cung cấp thông tin sức khỏe ban đầu (chiều cao, cân nặng) và đặt ra mục tiêu tập luyện cá nhân.
--   📅 **Đặt Lịch Linh Hoạt:** Chủ động đặt lịch tập với PT hoặc chọn khung giờ tự tập phù hợp.
--   💳 **Thanh Toán Online:** Thanh toán gói tập tiện lợi qua **MoMo**, **VNPAY**, hoặc chuyển khoản ngân hàng và upload biên lai trực tiếp lên hệ thống.
--   🔔 **Nhắc Nhở & Thông Báo:** Không bao giờ bỏ lỡ buổi tập hay hạn gói tập với hệ thống thông báo tự động.
--   ⭐ **Đánh Giá & Phản Hồi:** Đánh giá chất lượng dịch vụ, PT và phòng gym để giúp cải thiện trải nghiệm chung.
--   📊 **Xem Tiến Độ Cá Nhân:** Theo dõi sự thay đổi của bản thân qua các biểu đồ tiến độ trực quan.
+- 👤 **Health Profile**: Provide basic health info and set personal fitness goals.
+- 📅 **Flexible Booking**: Book sessions with PTs or choose free workout slots.
+- 💳 **Online Payment**: Pay for training packages via MoMo, VNPAY, or bank transfer and upload receipts.
+- 🔔 **Notifications**: Auto-reminders for sessions and package expiration.
+- ⭐ **Review & Feedback**: Rate PTs and gym services for continuous improvement.
+- 📊 **Track Progress**: Visualize personal fitness progress over time.
 
 </details>
 
 ---
 
-## Luồng Hoạt Động Người Dùng
+## 🔄 User Workflow
 
-1.  **Đăng ký:** Người dùng chọn vai trò (Quản lý, PT, Hội viên) và tạo tài khoản. Hội viên cần nhập các chỉ số sức khỏe cơ bản.
-2.  **Chọn & Mua Gói Tập:** Hội viên xem các gói tập, chọn gói phù hợp và tiến hành thanh toán online.
-3.  **Đặt Lịch:** Sau khi có gói tập, hội viên đặt lịch với PT hoặc khung giờ tự do.
-4.  **Tập Luyện & Ghi Nhận:** PT hướng dẫn và cập nhật tiến độ sau mỗi buổi tập.
-5.  **Tương Tác:** Hội viên và PT trao đổi qua chat. Hội viên có thể gửi phản hồi, đánh giá sau khi trải nghiệm.
-6.  **Quản Lý & Theo Dõi:** Quản lý giám sát toàn bộ hoạt động, doanh thu và hiệu suất của phòng gym qua dashboard.
+1. **Registration**: Users select a role (Manager, PT, Member) and create an account. Members must provide basic health info.
+2. **Purchase Package**: Members browse and purchase suitable training packages online.
+3. **Schedule Sessions**: Members book with PTs or select available times for self-workout.
+4. **Training & Tracking**: PTs lead sessions and log progress after each workout.
+5. **Communication**: Members and PTs communicate via chat. Feedback and ratings can be submitted.
+6. **Admin Oversight**: Managers monitor all activity, revenue, and gym performance via dashboards.
 
 ---
 
-## Công Nghệ Sử Dụng (Tech Stack)
+## 🧰 Tech Stack
 
-| Phần             | Công nghệ                                                                                     |
+| Area             | Technologies                                                                                  |
 |------------------|-----------------------------------------------------------------------------------------------|
 | **Frontend**      | `React Native` – `TailwindCSS` / `NativeWind`                                                |
 | **Backend**       | `Django` – Django REST Framework                                                             |
-| **Database**      | `MySQL` / `MongoDB` (tùy theo cấu trúc lưu trữ và môi trường)                                |
-| **Real-time**     | `Firebase Realtime Database` / `Firestore` (cho tính năng Chat real-time)                    |
-| **Thanh Toán**    | Tích hợp API: `MoMo`, `VNPAY`                                                                 |
-| **Deployment**    | `Expo Go` / `APK Build` (Frontend), `Heroku` / `AWS` / `DigitalOcean` (Backend)             |
+| **Database**      | `MySQL` / `MongoDB` (depending on structure & environment)                                   |
+| **Real-time**     | `Firebase Realtime Database` / `Firestore` (used for real-time chat)                         |
+| **Payments**      | Integrated APIs: `MoMo`, `VNPAY`                                                              |
+| **Deployment**    | `Expo Go` / APK Build (Frontend), `Heroku` / `AWS` / `DigitalOcean` (Backend)               |
 | **CI/CD**         | `GitHub Actions`                                                                             |
-| **State Mngmt**   | `Redux Toolkit` / `Zustand` (quản lý trạng thái phía client)                                 |
+| **State Management** | `Redux Toolkit` / `Zustand`                                                               |
 
 ---
 
-## Hướng Dẫn Cài Đặt
+## ⚙️ Installation Guide
 
-Để chạy dự án này trên máy cục bộ của bạn, hãy làm theo các bước sau:
+To run this project locally, follow these steps:
 
-**1. Yêu cầu hệ thống:**
-* Node.js (phiên bản 18.x trở lên)
-* npm / yarn / pnpm
-* Git
+### 1. Requirements
 
-**2. Clone repository:**
-```bash
-git clone [https://github.com/your-username/your-repo.git](https://github.com/your-username/your-repo.git)
-cd your-repo
-```
+- Node.js (v18 or higher)
+- npm / yarn / pnpm
+- Python 3.x + pip
+- Git
 
-**3. 🧩 Cài đặt Dependencies**
-
-### 📦 Đối với Backend (`gymcare`):
+### 2. Clone the repository
 
 ```bash
-cd server
-npm install
+git clone https://github.com/catv2004/gymcare.git
+cd gymcare
 ```
 
-### 📦 Đối với Frontend (thư mục gymcare-app):
+**3. Install Dependencies**
+
+### Backend (Django)::
 
 ```bash
 cd server
 npm install
 ```
 
-**4.⚙️ Cấu Hình Biến Môi Trường**
-* Tạo file .env trong thư mục server từ file .env.example.
-* Điền các thông tin cần thiết như DATABASE_URL, JWT_SECRET, FIREBASE_CONFIG, MOMO_API_KEY, etc.
+### Frontend (React Native):
+
+```bash
+cd server
+npm install
+```
+
+**4.⚙️ Configure Environment Variables**
+* Create a .env file in the gymcare (backend) folder using .env.example as reference.
+* Example .env content:
 
 ```bash
 # Ví dụ file .env trong server
@@ -129,30 +134,29 @@ PORT=8080
 JWT_SECRET="your_super_secret_key"
 ```
 
-## Cách sử dụng
+## Usage
 
-**1. Chạy Backend Server:**
+**1. Run Backend (Django):**
 
 ```bash
 cd gymcare
 python manage.py runserver 0.0.0.0:8000
 ```
 
-Server sẽ chạy tại http://localhost:8080 (hoặc port bạn cấu hình trong .env).
+Server will be accessible at: http://localhost:8000
 
-**1. Chạy Frontend App:**
+**1. Run Frontend (React Native):**
 
 ```bash
 cd gymcare-app
 npm run dev 
 ```
 
-Ứng dụng sẽ mở tại http://localhost:3000.
-
+App will run via Expo or open in a simulator or physical device.
 
 ## Tác Giả
 
-- **[Nguyen Manh Cuong]** – Project Leader & Backend Developer & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
+- **[Nguyen Manh Cuong]** – Project Leader, Backend & Frontend Developer – [GitHub Profile](https://github.com/catv2004)
 
 
 
