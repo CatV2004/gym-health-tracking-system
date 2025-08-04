@@ -7,7 +7,6 @@
 Một giải pháp phần mềm toàn diện được thiết kế để số hóa và tối ưu hóa hoạt động của phòng gym, đồng thời nâng cao trải nghiệm tập luyện cho hội viên. Hệ thống kết nối liền mạch giữa **Quản Lý**, **Huấn Luyện Viên (PT)** và **Hội Viên** trên một nền tảng duy nhất.
 
 ![Project Banner](https://images.unsplash.com/photo-1571902943202-507ec2618e8f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Z3ltLGludGVyaW9yLHdlaWdodHN8fHx8fHwxNzIzNTQyMzYy&ixlib=rb-4.0.3&q=80&utm_campaign=api-credit&utm_medium=referral&utm_source=unsplash_source&w=1080)
-_Lưu ý: Thay thế URL trên bằng ảnh banner/screenshot thực tế của dự án._
 
 ---
 
@@ -103,6 +102,7 @@ Dự án này giải quyết các thách thức trong việc quản lý thủ c�
 ```bash
 git clone [https://github.com/your-username/your-repo.git](https://github.com/your-username/your-repo.git)
 cd your-repo
+```
 
 **3. 🧩 Cài đặt Dependencies**
 
@@ -111,12 +111,14 @@ cd your-repo
 ```bash
 cd server
 npm install
+```
 
 ### 📦 Đối với Frontend (thư mục gymcare-app):
 
 ```bash
 cd server
 npm install
+```
 
 **4.⚙️ Cấu Hình Biến Môi Trường**
 * Tạo file .env trong thư mục server từ file .env.example.
@@ -127,6 +129,7 @@ npm install
 DATABASE_URL="your_mongodb_connection_string"
 PORT=8080
 JWT_SECRET="your_super_secret_key"
+```
 
 ## Cách sử dụng
 
@@ -135,6 +138,7 @@ JWT_SECRET="your_super_secret_key"
 ```bash
 cd gymcare
 python manage.py runserver 0.0.0.0:8000
+```
 
 Server sẽ chạy tại http://localhost:8080 (hoặc port bạn cấu hình trong .env).
 
@@ -143,6 +147,7 @@ Server sẽ chạy tại http://localhost:8080 (hoặc port bạn cấu hình tr
 ```bash
 cd gymcare-app
 npm run dev 
+```
 
 Ứng dụng sẽ mở tại http://localhost:3000.
 
